@@ -118,7 +118,7 @@ const essays: Essay[] = [
 
 暑假回到家，正好赶上了观音菩萨的生日，夜晚仍可以看见山上多年前那样景象，闭眼睁眼，我好像醒了，又好像没醒。屋顶的院子里，苦瓜架子种成了冬瓜藤，西面的山依旧葱郁，我如同小的时候等着黄昏，太阳卧在山顶的时候，又准备起身，蜘蛛网粘在我的脸上。`,
     date: "2023-10-25",
-    image: "/essay/covers/山.jpg",
+    image: "/essay/covers/mountain.jpg",
   },
   {
     id: 8,
@@ -166,7 +166,7 @@ const essays: Essay[] = [
 
 我逐渐地试图去理解那些墓碑是什么，是遗憾罢？这个世界好像每天都在发生着，于是想起曾经寒允说过一句话，从过去成为过去的那一刻起，便真成了水中月，成了风中烛，成了雨里灯，遗憾而无余，朦胧而美丽。有一天我会再次走到那个花坛，会看见有一群小朋友嬉戏打闹玩游戏，看见里面的花开的正艳，会再去到那条空旷的街，闭上眼睛还可以闻到炒瓜子的味道，脚下还会踩到一个烂橘子，我会回到那个窗台，对一个空空的花盆，听见过去有一株向日葵对我说为什么没有来看我开花，我哭着说对不起，我会打着伞经过那个路口，雨雾散了，看见她在远方挥手告别，太阳照在她的脸上，年轻美丽，像个天使。再走到十字路口，我仿佛看见那个落满鲜花的泡沫箱子里面有一只熟睡的狸花猫。风吹了起来，花瓣又铺了一层在泡沫箱上，在我的头上，在我的心上，闭上眼睛，我听见了一声猫叫。`,
     date: "2023-05-21",
-    image: "/essay/covers/墓碑.jpg",
+    image: "/essay/covers/tombstone.jpg",
   },
   {
     id: 1,
@@ -298,7 +298,7 @@ const essays: Essay[] = [
 
 是啊，入冬了。`,
     date: "2025-06-30",
-    image: "/essay/covers/渔.jpg",
+    image: "/essay/covers/fishing.jpg",
   },
   {
     id: 5,
@@ -352,7 +352,7 @@ const essays: Essay[] = [
 
 2024.7.3`,
     date: "2024-07-03",
-    image: "/essay/covers/花.jpg",
+    image: "/essay/covers/flower.jpg",
   },
   {
     id: 6,
@@ -398,7 +398,7 @@ const essays: Essay[] = [
 擦了擦鼻涕，打了个喷嚏后，我问今天怎么这么冷，毛毛说，昨天开始就很冷了，我昨天好像没感受出来。后来穿上袄子在教室坐着我还打哆嗦，我便说了和去年同样的话：
 原来今年冬天这么冷。`,
     date: "2024-06-09",
-    image: "/essay/covers/冬.jpg",
+    image: "/essay/covers/winter.jpg",
   },
   {
     id: 3,
@@ -476,7 +476,7 @@ const essays: Essay[] = [
 
 太阳落下去了，那个春天肯定也回不来了。`,
     date: "2024-11-08",
-    image: "/essay/covers/春.jpg",
+    image: "/essay/covers/spring.jpg",
   },
   {
     id: 2,
@@ -542,7 +542,7 @@ const essays: Essay[] = [
 
 两年前，我在南部校区散步，看到一位老师带着他的孩子玩滑滑梯，那孩子在滑梯上，把自己的玩具车推了下去，摔得粉碎。`,
     date: "2025-04-28",
-    image: "/essay/covers/月.jpg",
+    image: "/essay/covers/moon.jpg",
   },
 ];
 
