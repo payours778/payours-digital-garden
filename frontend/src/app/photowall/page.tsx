@@ -1,22 +1,36 @@
-import { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-  title: "照片墙",
-  description: "摄影作品集",
-};
+import { useState, useEffect } from "react";
+import Link from "next/link";
 
-const photos = [
-  { id: 1, src: "https://picsum.photos/seed/japan1/800/600", alt: "东京街头" },
-  { id: 2, src: "https://picsum.photos/seed/japan2/600/800", alt: "京都古巷" },
-  { id: 3, src: "https://picsum.photos/seed/nature1/800/800", alt: "山林晨雾" },
-  { id: 4, src: "https://picsum.photos/seed/city1/800/600", alt: "城市夜景" },
-  { id: 5, src: "https://picsum.photos/seed/food1/600/600", alt: "美食" },
-  { id: 6, src: "https://picsum.photos/seed/travel1/800/600", alt: "旅行" },
-  { id: 7, src: "https://picsum.photos/seed/coffee1/600/800", alt: "咖啡时光" },
-  { id: 8, src: "https://picsum.photos/seed/sunset1/800/600", alt: "日落" },
-];
+interface Album {
+  id: number;
+  name: string;
+  description: string;
+  cover_url: string;
+  photo_count: number;
+  created_at: string;
+}
 
 export default function PhotowallPage() {
+  const [albums, setAlbums] = useState<Album[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchAlbums = async () => {
+      setIsLoading(true);
+      try {
+        const res = await fetch("/api/albums");
+        const data = await res.json();
+        setAlbums(data.albums || []);
+      } catch (error) {
+        console.error("获取相册列表失败:", error);
+      }
+      setIsLoading(false);
+    };
+    fetchAlbums();
+  }, []);
+
   return (
     <div className="pt-24 pb-16 px-4 min-h-screen">
       <div className="max-w-6xl mx-auto">
@@ -29,25 +43,49 @@ export default function PhotowallPage() {
           </p>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {photos.map((photo, index) => (
-            <div
-              key={photo.id}
-              className="group relative aspect-square rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:shadow-indigo-500/20 transition-all duration-500 animate-fade-in-up cursor-pointer"
-              style={{ animationDelay: `${index * 50}ms` }}
-            >
-              <img
-                src={photo.src}
-                alt={photo.alt}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-              <div className="absolute bottom-4 left-4 right-4 translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300">
-                <p className="text-white text-sm font-medium">{photo.alt}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {isLoading ? (
+          <div className="text-center py-20 text-slate-500 dark:text-slate-400">加载中...</div>
+        ) : albums.length === 0 ? (
+          <div className="text-center py-20 text-slate-500 dark:text-slate-400">
+            <div className="text-5xl mb-4">📷</div>
+            <p>还没有相册</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+            {albums.map((album, index) => (
+              <Link
+                key={album.id}
+                href={`/photowall/${album.id}`}
+                className="group relative rounded-2xl overflow-hidden shadow-md hover:shadow-xl hover:shadow-indigo-500/20 transition-all duration-500 animate-fade-in-up cursor-pointer block"
+                style={{ animationDelay: `${index * 80}ms` }}
+              >
+                <div className="aspect-[4/3] bg-slate-200 dark:bg-slate-700">
+                  {album.cover_url ? (
+                    <img
+                      src={album.cover_url}
+                      alt={album.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                      <svg className="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                  <h3 className="text-white font-bold text-lg mb-1">{album.name}</h3>
+                  {album.description && (
+                    <p className="text-white/80 text-sm line-clamp-2">{album.description}</p>
+                  )}
+                  <p className="text-white/60 text-xs mt-1">{album.photo_count} 张照片</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -70,7 +70,7 @@ export default function AdminMoments() {
   const fetchMoments = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("http://localhost:3001/api/moments");
+      const res = await fetch("/api/moments");
       const data = await res.json();
       setMoments(data.moments || []);
     } catch (error) {
@@ -82,7 +82,7 @@ export default function AdminMoments() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("http://localhost:3001/api/moments", {
+      const res = await fetch("/api/moments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -105,7 +105,7 @@ export default function AdminMoments() {
     e.preventDefault();
     if (!currentMoment) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/moments/${currentMoment.id}`, {
+      const res = await fetch(`/api/moments/${currentMoment.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -128,7 +128,7 @@ export default function AdminMoments() {
   const handleDelete = async (id: number) => {
     if (!confirm("确定要删除这条说说吗？")) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/moments/${id}`, {
+      const res = await fetch(`/api/moments/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {

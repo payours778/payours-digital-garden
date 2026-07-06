@@ -87,8 +87,15 @@ export function FooterInfo() {
             Tailwind 4
           </div>
         </div>
-        <div className="text-xs text-slate-500 dark:text-slate-400">
-          暂未备案
+        <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+          >
+            渝ICP备2026013368号
+          </a>
         </div>
       </div>
     </div>
