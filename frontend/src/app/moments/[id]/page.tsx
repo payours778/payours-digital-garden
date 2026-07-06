@@ -88,7 +88,7 @@ export default function MomentDetailPage() {
             返回
           </button>
 
-          <article className="rounded-3xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/30 dark:border-slate-700/30 shadow-lg p-8">
+          <article className="rounded-3xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/30 dark:border-slate-700/30 shadow-lg p-5 sm:p-8">
             <div className="flex items-start gap-4 mb-6">
               <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0 border-2 border-white/40 dark:border-slate-700/40">
                 <img src="/me.jpg" alt={moment.username} className="w-full h-full object-cover" />

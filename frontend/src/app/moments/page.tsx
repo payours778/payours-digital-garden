@@ -67,6 +67,11 @@ export default function MomentsPage() {
     });
   };
 
+  const formatDateShort = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return `${date.getMonth() + 1}/${date.getDate()}`;
+  };
+
   const leftColumn: Moment[] = [];
   const rightColumn: Moment[] = [];
   let leftHeight = 0;
@@ -88,19 +93,20 @@ export default function MomentsPage() {
 
   const MomentCard = ({ moment }: { moment: Moment }) => (
     <Link key={moment.id} href={`/moments/${moment.id}`} className="block">
-      <article className="rounded-3xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/30 dark:border-slate-700/30 shadow-sm p-7 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer">
+      <article className="rounded-3xl bg-white/50 dark:bg-slate-800/50 backdrop-blur-md border border-white/30 dark:border-slate-700/30 shadow-sm p-3 sm:p-7 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 cursor-pointer">
         <div className="flex items-start gap-3 mb-5">
           <div className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 border-2 border-white/40 dark:border-slate-700/40">
             <img src="/me.jpg" alt={moment.username} className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="flex items-center justify-between">
-              <h3 className="font-bold text-slate-900 dark:text-white">{moment.username}</h3>
-              <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="font-bold text-slate-900 dark:text-white truncate text-sm sm:text-base">{moment.username}</h3>
+              <span className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 flex-shrink-0">
                 <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                 </svg>
-                {formatDate(moment.date)}
+                <span className="hidden sm:inline">{formatDate(moment.date)}</span>
+                <span className="sm:hidden">{formatDateShort(moment.date)}</span>
               </span>
             </div>
           </div>
@@ -185,7 +191,7 @@ export default function MomentsPage() {
           ) : filteredMoments.length === 0 ? (
             <div className="text-center py-20 text-slate-500 dark:text-slate-400">暂无说说</div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-2 gap-3 sm:gap-6">
               <div className="space-y-6">
                 {leftColumn.map((moment) => <MomentCard key={moment.id} moment={moment} />)}
               </div>

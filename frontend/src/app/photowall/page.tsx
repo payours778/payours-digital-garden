@@ -51,7 +51,7 @@ export default function PhotowallPage() {
             <p>还没有相册</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-6">
             {albums.map((album, index) => (
               <Link
                 key={album.id}

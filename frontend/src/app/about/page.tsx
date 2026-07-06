@@ -27,7 +27,7 @@ export default function AboutPage() {
         </div>
 
         <div className="space-y-6">
-          <section className="rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm p-6">
+          <section className="rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm p-4 sm:p-6">
             <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">
               关于我
             </h2>

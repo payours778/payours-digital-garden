@@ -8,10 +8,10 @@ import { ArticleCard } from "@/components/sections/ArticleCard";
 
 function SearchBar() {
   return (
-    <div className="max-w-2xl mx-auto mb-8">
+    <div className="max-w-2xl mx-auto mb-6 md:mb-8">
       <div className="relative">
         <svg
-          className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400"
+          className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-4 md:w-5 h-4 md:h-5 text-slate-400"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -26,7 +26,7 @@ function SearchBar() {
         <input
           type="text"
           placeholder="搜寻标题、描述或标签..."
-          className="w-full pl-12 pr-6 py-4 rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all"
+          className="w-full pl-10 md:pl-12 pr-4 md:pr-6 py-3 md:py-4 rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 text-sm md:text-base text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:border-indigo-500 transition-all"
         />
       </div>
     </div>
@@ -38,13 +38,13 @@ export default function Home() {
     <>
       <Hero />
 
-      <section className="py-8 px-4">
+      <section className="py-4 md:py-8 px-4">
         <div className="max-w-6xl mx-auto">
           {/* 搜索栏 */}
           <SearchBar />
 
-          {/* 顶部卡片区域 */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mb-8 items-stretch">
+          {/* 手机端：单列堆叠；桌面端：7/5 布局 */}
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-6 mb-6 md:mb-8 items-stretch">
             <div className="md:col-span-7">
               <ProfileCard />
             </div>
@@ -57,7 +57,7 @@ export default function Home() {
           <ArticleList />
 
           {/* 底部卡片区域 */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 mt-8">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-6 mt-6 md:mt-8">
             <div className="md:col-span-8">
               <ArticleCard />
             </div>
@@ -67,7 +67,7 @@ export default function Home() {
           </div>
 
           {/* 底部信息栏 */}
-          <div className="mt-8">
+          <div className="mt-6 md:mt-8">
             <FooterInfo />
           </div>
         </div>

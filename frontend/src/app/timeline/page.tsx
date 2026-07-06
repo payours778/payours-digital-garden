@@ -218,7 +218,7 @@ export default function TimelinePage() {
               {filteredPosts.map((post, index) => (
                 <div
                   key={post.id}
-                  className={`relative flex items-start gap-6 animate-fade-in-up ${
+                  className={`relative flex items-start gap-3 sm:gap-6 animate-fade-in-up ${
                     index % 2 === 0 ? "md:flex-row" : "md:flex-row-reverse"
                   }`}
                   style={{ animationDelay: `${index * 100}ms` }}

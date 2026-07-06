@@ -524,7 +524,7 @@ export default function FarmGamePage() {
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-6 py-3 rounded-2xl font-semibold transition-all duration-300 ${
+              className={`px-3 py-2 sm:px-6 sm:py-3 rounded-2xl text-sm sm:text-base font-semibold transition-all duration-300 ${
                 activeTab === tab.key
                   ? `bg-gradient-to-r ${tab.gradient} text-white shadow-lg shadow-opacity-30`
                   : "bg-white/80 dark:bg-slate-800/80 text-slate-600 dark:text-slate-400 hover:shadow-md"
@@ -581,7 +581,7 @@ export default function FarmGamePage() {
 
               <div className="flex-1">
                 <div className="relative rounded-3xl overflow-hidden bg-gradient-to-b from-green-200/60 to-green-300/60 dark:from-green-900/40 dark:to-green-800/40 border border-green-300/40 dark:border-green-700/40 shadow-xl">
-                  <div className="relative p-6">
+                  <div className="relative p-4 sm:p-6">
                     <div className="flex items-center justify-between mb-6 flex-wrap gap-4">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-400 to-emerald-500 flex items-center justify-center shadow-lg">
@@ -604,7 +604,7 @@ export default function FarmGamePage() {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-7 gap-2 justify-items-center">
+                    <div className="grid grid-cols-5 sm:grid-cols-7 gap-1.5 sm:gap-2 justify-items-center">
                       {plots.map((plot) => {
                         const crop = plot.cropId ? CROPS.find((c) => c.id === plot.cropId) : null;
                         return (
@@ -614,7 +614,7 @@ export default function FarmGamePage() {
                               if (plot.stage === "empty") plantCrop(plot.id);
                               else if (plot.stage === "ready") harvestCrop(plot.id);
                             }}
-                            className={`w-16 h-16 sm:w-20 sm:h-20 relative rounded-xl transition-all duration-300 cursor-pointer overflow-hidden ${
+                            className={`w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 relative rounded-xl transition-all duration-300 cursor-pointer overflow-hidden ${
                               plot.stage !== "empty" && crop ? "shadow-md" : "hover:shadow-lg"
                             }`}
                           >
@@ -1074,7 +1074,7 @@ export default function FarmGamePage() {
                   </button>
                 </div>
 
-                <div className="bg-white/80 dark:bg-slate-800/80 rounded-3xl p-6 shadow-lg">
+                <div className="bg-white/80 dark:bg-slate-800/80 rounded-3xl p-4 sm:p-6 shadow-lg">
                   <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-4 flex items-center gap-2">
                     <span>📦</span> 可购买的道具
                   </h3>

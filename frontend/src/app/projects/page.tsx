@@ -47,11 +47,11 @@ export default function ProjectsPage() {
         ) : projects.length === 0 ? (
           <div className="text-center py-20 text-slate-500 dark:text-slate-400">暂无项目</div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-2 gap-3 sm:gap-6">
             {projects.map((project, index) => (
               <article
                 key={project.id}
-                className="group relative rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-500 overflow-hidden animate-fade-in-up p-6"
+                className="group relative rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-sm hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-500 overflow-hidden animate-fade-in-up p-3 sm:p-6"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-purple-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />

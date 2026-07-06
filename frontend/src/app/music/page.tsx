@@ -193,7 +193,7 @@ export default function MusicPage() {
 
           {/* Right Side - Track List */}
           <div>
-            <div className="rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-xl p-6 h-[500px] overflow-hidden">
+            <div className="rounded-3xl bg-white/40 dark:bg-slate-800/50 backdrop-blur-xl border border-white/40 dark:border-white/10 shadow-xl p-4 sm:p-6 h-[500px] overflow-hidden">
               <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 px-2">
                 播放列表 ({tracks.length})
               </h3>

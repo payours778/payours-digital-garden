@@ -60,29 +60,29 @@ const articles: Article[] = [
 
 export function ArticleList() {
   return (
-    <div className="space-y-8">
-      {/* 主网格布局 */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+    <div className="space-y-4 md:space-y-8">
+      {/* 手机端：单列；桌面端：5/7 布局 */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-8">
         {/* 左侧大图卡片 */}
         <div className="lg:col-span-5">
           <Link href={`/${articles[0].slug}`}>
             <article className="group rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500 h-full">
               {articles[0].image && (
-                <div className="relative h-56 overflow-hidden">
+                <div className="relative h-40 md:h-56 overflow-hidden">
                   <img
                     src={articles[0].image}
                     alt={articles[0].title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full">
+                  <div className="absolute bottom-3 md:bottom-4 left-3 md:left-4 right-3 md:right-4">
+                    <div className="flex items-center gap-2 mb-1 md:mb-2 flex-wrap">
+                      <span className="px-2 md:px-3 py-0.5 md:py-1 text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full">
                         {articles[0].category}
                       </span>
                       <span className="text-xs text-white/80">{articles[0].date}</span>
                     </div>
-                    <h3 className="text-xl font-bold text-white group-hover:text-indigo-300 transition-colors">
+                    <h3 className="text-base md:text-xl font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-2">
                       {articles[0].title}
                     </h3>
                   </div>
@@ -93,36 +93,36 @@ export function ArticleList() {
         </div>
 
         {/* 右侧区域 */}
-        <div className="lg:col-span-7 flex flex-col gap-8">
+        <div className="lg:col-span-7 flex flex-col gap-3 md:gap-8">
           {/* 右侧顶部大图卡片 */}
           <Link href={`/${articles[1].slug}`}>
             <article className="group rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500">
               {articles[1].image && (
-                <div className="relative h-48 overflow-hidden">
+                <div className="relative h-32 md:h-48 overflow-hidden">
                   <img
                     src={articles[1].image}
                     alt={articles[1].title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <h3 className="text-xl font-bold text-white mb-2 group-hover:text-indigo-300 transition-colors">
+                  <div className="absolute bottom-3 md:bottom-4 left-3 md:left-4 right-3 md:right-4">
+                    <h3 className="text-base md:text-xl font-bold text-white mb-1 md:mb-2 group-hover:text-indigo-300 transition-colors line-clamp-2">
                       {articles[1].title}
                     </h3>
-                    <p className="text-white/70 text-sm">{articles[1].excerpt}</p>
+                    <p className="text-white/70 text-xs md:text-sm line-clamp-2">{articles[1].excerpt}</p>
                   </div>
                 </div>
               )}
             </article>
           </Link>
 
-          {/* 右侧底部两个小卡片 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+          {/* 右侧底部两个小卡片：手机单列，桌面双列 */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-8">
             {articles.slice(2, 4).map((article) => (
               <Link key={article.id} href={`/${article.slug}`}>
                 <article className="group rounded-3xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500">
                   {article.image && (
-                    <div className="relative h-32 overflow-hidden">
+                    <div className="relative h-24 md:h-32 overflow-hidden">
                       <img
                         src={article.image}
                         alt={article.title}
@@ -130,16 +130,16 @@ export function ArticleList() {
                       />
                     </div>
                   )}
-                  <div className="p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="px-3 py-1 text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-600 dark:text-indigo-400 rounded-full">
+                  <div className="p-3 md:p-5">
+                    <div className="flex items-center gap-2 mb-2 md:mb-3">
+                      <span className="px-2 md:px-3 py-0.5 md:py-1 text-xs font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500/20 to-purple-500/20 text-indigo-600 dark:text-indigo-400 rounded-full">
                         {article.category}
                       </span>
                     </div>
-                    <h3 className="text-lg font-bold text-slate-800 dark:text-white mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                    <h3 className="text-sm md:text-lg font-bold text-slate-800 dark:text-white mb-1 md:mb-2 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
                       {article.title}
                     </h3>
-                    <p className="text-sm text-slate-600 dark:text-slate-300 line-clamp-2">
+                    <p className="text-xs md:text-sm text-slate-600 dark:text-slate-300 line-clamp-2">
                       {article.excerpt}
                     </p>
                   </div>

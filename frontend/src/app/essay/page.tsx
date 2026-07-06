@@ -85,7 +85,7 @@ export default function EssayPage() {
         </section>
 
         {/* Essay Grid - Two Columns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-3 sm:gap-6">
           {essays.map((essay) => (
             <Link
               key={essay.id}
@@ -95,7 +95,7 @@ export default function EssayPage() {
                 "hover:shadow-xl hover:shadow-indigo-500/10 transition-all duration-500 hover:-translate-y-1 cursor-pointer"
               )}
             >
-              <div className="relative h-48 overflow-hidden">
+              <div className="relative h-32 sm:h-48 overflow-hidden">
                 <img
                   src={essay.image}
                   alt={essay.title}

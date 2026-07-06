@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
@@ -21,6 +21,8 @@ const navItems = [
 export function Header() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -31,11 +33,30 @@ export function Header() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  // 路由切换时关闭菜单
+  useEffect(() => {
+    setMobileMenuOpen(false);
+  }, [pathname]);
+
+  // 点击外部关闭
+  useEffect(() => {
+    if (!mobileMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [mobileMenuOpen]);
+
   return (
     <header
+      ref={menuRef}
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl border-white/20 dark:border-white/5 shadow-sm",
-        isScrolled && "-translate-y-full"
+        // 移动端不滚动隐藏，确保汉堡菜单始终可点
+        isScrolled && "md:-translate-y-full"
       )}
     >
       <div className="w-[90%] max-w-6xl mx-auto h-16 flex items-center justify-between px-4 sm:px-[30px] box-border">
@@ -47,6 +68,7 @@ export function Header() {
         </Link>
 
         <div className="flex items-center gap-5">
+          {/* 桌面导航 */}
           <nav className="hidden md:flex gap-6 text-sm font-bold">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
@@ -70,26 +92,56 @@ export function Header() {
             })}
           </nav>
 
+          {/* 移动端汉堡菜单按钮 */}
+          <button
+            className="md:hidden p-2 rounded-full hover:bg-white/10 transition-colors"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            aria-label="菜单"
+          >
+            <svg
+              className="w-5 h-5 text-slate-700 dark:text-slate-200"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              {mobileMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              )}
+            </svg>
+          </button>
+
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <button className="md:hidden p-2 rounded-full hover:bg-white/10 transition-colors">
-              <svg
-                className="w-5 h-5 text-slate-700 dark:text-slate-200"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              </svg>
-            </button>
           </div>
         </div>
       </div>
+
+      {/* 移动端下拉菜单 */}
+      {mobileMenuOpen && (
+        <nav className="md:hidden bg-transparent border-t border-white/20 dark:border-white/5">
+          <div className="w-[90%] max-w-6xl mx-auto py-3 grid grid-cols-3 gap-1">
+            {navItems.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={cn(
+                    "px-3 py-2 rounded-lg text-sm font-medium text-center transition-colors",
+                    isActive
+                      ? "bg-indigo-500 text-white"
+                      : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  )}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+      )}
     </header>
   );
 }
