@@ -1,9 +1,11 @@
 import express from 'express';
 import cors from 'cors';
 import postsRouter from './routes/posts';
+import essaysRouter from './routes/essays';
 import momentsRouter from './routes/moments';
 import projectsRouter from './routes/projects';
 import photosRouter from './routes/photos';
+import musicRouter from './routes/music';
 import getDb from './db';
 
 const app = express();
@@ -13,10 +15,12 @@ app.use(cors());
 app.use(express.json());
 
 app.use('/api/posts', postsRouter);
+app.use('/api/essays', essaysRouter);
 app.use('/api/moments', momentsRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/albums', photosRouter);
 app.use('/api/photos', photosRouter);
+app.use('/api/music', musicRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running' });

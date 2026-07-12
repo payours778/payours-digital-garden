@@ -5,6 +5,7 @@ export interface Post {
   excerpt: string;
   slug: string;
   cover: string;
+  tags: string[];
   views: number;
   created_at: string;
   updated_at: string;
@@ -24,6 +25,7 @@ export interface CreatePostRequest {
   excerpt: string;
   slug: string;
   cover?: string;
+  tags?: string[];
 }
 
 export interface UpdatePostRequest {
@@ -31,6 +33,7 @@ export interface UpdatePostRequest {
   content?: string;
   excerpt?: string;
   cover?: string;
+  tags?: string[];
 }
 
 export interface CreateMomentRequest {
@@ -104,6 +107,7 @@ export interface Music {
   artist: string;
   url: string;
   cover: string;
+  duration: string;
   created_at: string;
 }
 
@@ -112,6 +116,7 @@ export interface CreateMusicRequest {
   artist?: string;
   url: string;
   cover?: string;
+  duration?: string;
 }
 
 export interface UpdateMusicRequest {
@@ -119,4 +124,5 @@ export interface UpdateMusicRequest {
   artist?: string;
   url?: string;
   cover?: string;
+  duration?: string;
 }

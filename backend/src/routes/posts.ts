@@ -1,7 +1,11 @@
 import { Router } from 'express';
-import { getPosts, getPostById, createPost, updatePost, deletePost } from '../controllers/postController';
+import { getPosts, getPostArchive, getPostTags, getPostById, createPost, updatePost, deletePost } from '../controllers/postController';
 
 const router = Router();
+
+// 归档相关接口
+router.get('/archive', getPostArchive);
+router.get('/tags', getPostTags);
 
 router.get('/', getPosts);
 router.get('/:id', getPostById);

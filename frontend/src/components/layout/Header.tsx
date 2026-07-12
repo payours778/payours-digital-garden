@@ -10,7 +10,7 @@ const navItems = [
   { href: "/", label: "首页" },
   { href: "/projects", label: "项目" },
   { href: "/essay", label: "随笔" },
-  { href: "/timeline", label: "归档" },
+  { href: "/timeline", label: "文章归档" },
   { href: "/photowall", label: "照片墙" },
   { href: "/music", label: "音乐" },
   { href: "/tree", label: "灵境" },

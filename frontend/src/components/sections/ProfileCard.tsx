@@ -15,7 +15,8 @@ export function ProfileCard() {
               Payours
             </h2>
             <p className="text-slate-600 dark:text-slate-300 text-xs md:text-sm leading-relaxed mb-3 md:mb-4">
-              在代码、文学与音乐的交织中穿梭的普通人。近期埋头于各类项目的研究与神经网络计算。
+              在代码、文学与音乐交织中穿梭的普通程序员。
+              近期埋头于各类AI产品的研究用于工作提效。
             </p>
             <div className="flex items-center gap-4 md:gap-6 text-xs md:text-sm">
               <div className="text-center">

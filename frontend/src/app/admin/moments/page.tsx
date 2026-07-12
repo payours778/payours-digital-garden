@@ -237,7 +237,7 @@ export default function AdminMoments() {
       )}
 
       {mounted && showCreateModal && createPortal(
-        <div className="fixed inset-0 flex items-start justify-center pt-40 pb-8 px-4 overflow-y-auto z-[60] pointer-events-none">
+        <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto z-[60] pointer-events-none">
           <div className="pointer-events-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-xl p-6 w-full max-w-md border border-white/20 dark:border-white/10 shadow-lg">
             <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">
               发布说说
@@ -350,7 +350,7 @@ export default function AdminMoments() {
       )}
 
       {mounted && showEditModal && currentMoment && createPortal(
-        <div className="fixed inset-0 flex items-start justify-center pt-40 pb-8 px-4 overflow-y-auto z-[60] pointer-events-none">
+        <div className="fixed inset-0 flex items-center justify-center p-4 overflow-y-auto z-[60] pointer-events-none">
           <div className="pointer-events-auto bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-xl p-6 w-full max-w-md border border-white/20 dark:border-white/10 shadow-lg">
             <h3 className="text-xl font-bold text-slate-800 dark:text-white mb-4">
               编辑说说

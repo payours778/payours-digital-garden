@@ -1,115 +1,106 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import Link from "next/link";
 
 interface Post {
   id: number;
   title: string;
-  date: string;
-  description: string;
+  excerpt: string;
+  cover: string;
   tags: string[];
-  image: string;
+  views: number;
+  created_at: string;
 }
 
-const posts: Post[] = [
-  {
-    id: 1,
-    title: "Leetcode一百题——单词搜索",
-    date: "2026-05-12",
-    description: "遍历加搜索",
-    tags: ["Leetcode", "C++", "题解", "工作"],
-    image: "https://neeko-copilot.bytedance.net/api/text_to_image?prompt=anime%20style%20mysterious%20forest%20with%20glowing%20runes&image_size=landscape_4_3",
-  },
-  {
-    id: 2,
-    title: "Leetcode一百题——括号生成",
-    date: "2026-05-12",
-    description: "暂时没有描述喵...",
-    tags: ["Leetcode", "C++", "题解", "工作"],
-    image: "https://neeko-copilot.bytedance.net/api/text_to_image?prompt=anime%20style%20mathematical%20formulas%20floating%20in%20space&image_size=landscape_4_3",
-  },
-  {
-    id: 3,
-    title: "Leetcode一百题——组合总和",
-    date: "2026-05-10",
-    description: "回溯算法 + 排序剪枝求解",
-    tags: ["C++", "Leetcode", "题解", "算法"],
-    image: "https://neeko-copilot.bytedance.net/api/text_to_image?prompt=anime%20style%20puzzle%20pieces%20fitting%20together&image_size=landscape_4_3",
-  },
-  {
-    id: 4,
-    title: "Leetcode一百题——电话号码的字母组合",
-    date: "2026-05-10",
-    description: "最难的是手打字符",
-    tags: ["Leetcode", "C++", "题解", "工作"],
-    image: "https://neeko-copilot.bytedance.net/api/text_to_image?prompt=anime%20style%20old%20telephone%20with%20glowing%20numbers&image_size=landscape_4_3",
-  },
-  {
-    id: 5,
-    title: "Leetcode一百题——子集",
-    date: "2026-05-09",
-    description: "回溯",
-    tags: ["Leetcode", "C++", "题解", "工作"],
-    image: "https://neeko-copilot.bytedance.net/api/text_to_image?prompt=anime%20style%20abstract%20tree%20branches%20with%20leaves&image_size=landscape_4_3",
-  },
-  {
-    id: 6,
-    title: "Leetcode一百题——全排列",
-    date: "2026-05-09",
-    description: "暂时没有描述喵...",
-    tags: ["Leetcode", "C++", "题解", "工作"],
-    image: "https://neeko-copilot.bytedance.net/api/text_to_image?prompt=anime%20style%20colorful%20blocks%20arranged%20in%20patterns&image_size=landscape_4_3",
-  },
-  {
-    id: 7,
-    title: "Leetcode一百题——实现Tire（前缀树）",
-    date: "2026-05-08",
-    description: "搭建前缀树的数据结构，用到了链表",
-    tags: ["Leetcode", "C++", "数据结构", "题解"],
-    image: "https://neeko-copilot.bytedance.net/api/text_to_image?prompt=anime%20style%20digital%20tree%20with%20glowing%20nodes&image_size=landscape_4_3",
-  },
-  {
-    id: 8,
-    title: "Leetcode一百题——课程表",
-    date: "2026-05-08",
-    description: "图+队列",
-    tags: ["Leetcode", "C++", "题解", "工作"],
-    image: "https://neeko-copilot.bytedance.net/api/text_to_image?prompt=anime%20style%20school%20classroom%20with%20floating%20books&image_size=landscape_4_3",
-  },
-];
+interface TagInfo {
+  name: string;
+  count: number;
+}
 
-const allTags = [
-  { name: "全部档案", count: 8 },
-  { name: "Leetcode", count: 8 },
-  { name: "Java", count: 8 },
-  { name: "工作", count: 6 },
-  { name: "算法", count: 2 },
-  { name: "数据结构", count: 1 },
-];
+interface ArchiveMonth {
+  month: string;
+  monthName: string;
+  count: number;
+  posts: { id: number; title: string; date: string }[];
+}
+
+interface ArchiveYear {
+  year: string;
+  months: ArchiveMonth[];
+}
 
 export default function TimelinePage() {
-  const [viewMode, setViewMode] = useState<"timeline" | "grid">("grid");
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [tags, setTags] = useState<TagInfo[]>([]);
+  const [archive, setArchive] = useState<ArchiveYear[]>([]);
+  const [totalPosts, setTotalPosts] = useState(0);
+  const [viewMode, setViewMode] = useState<"timeline" | "grid" | "archive">("grid");
   const [selectedTag, setSelectedTag] = useState("全部档案");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredPosts = posts.filter((post) => {
-    const matchesTag = selectedTag === "全部档案" || post.tags.includes(selectedTag);
-    const matchesSearch =
-      searchQuery === "" ||
-      post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      post.description.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesTag && matchesSearch;
-  });
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const [tagsRes, archiveRes] = await Promise.all([
+          fetch("/api/posts/tags"),
+          fetch("/api/posts/archive")
+        ]);
+        const tagsData = await tagsRes.json();
+        const archiveData = await archiveRes.json();
+        setTags(tagsData.tags || []);
+        setTotalPosts(tagsData.total || 0);
+        setArchive(archiveData.archive || []);
+      } catch (error) {
+        console.error("获取标签失败:", error);
+      }
+    };
+    fetchTags();
+  }, []);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setIsLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (searchQuery) params.append("search", searchQuery);
+        if (selectedTag !== "全部档案") params.append("tag", selectedTag);
+
+        const res = await fetch(`/api/posts?${params.toString()}`);
+        const data = await res.json();
+        setPosts(data.posts || []);
+      } catch (error) {
+        console.error("获取文章失败:", error);
+      }
+      setIsLoading(false);
+    };
+    fetchPosts();
+  }, [searchQuery, selectedTag]);
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString("zh-CN", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    });
+  };
+
+  const allTags: TagInfo[] = [
+    { name: "全部档案", count: totalPosts },
+    ...tags,
+  ];
 
   return (
     <div className="pt-24 pb-16 px-4 min-h-screen">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 dark:text-white mb-2">
-            归档与探索
+            文章归档
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400">
-            总计 {posts.length} 篇研究记录
+            总计 {totalPosts} 篇研究记录
           </p>
         </div>
 
@@ -169,25 +160,102 @@ export default function TimelinePage() {
             </svg>
             矩阵网格
           </button>
+          <button
+            onClick={() => setViewMode("archive")}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium transition-all ${
+              viewMode === "archive"
+                ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg"
+                : "bg-white/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-400 hover:bg-white/70 dark:hover:bg-slate-700/50"
+            }`}
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+            </svg>
+            年月归档
+          </button>
         </div>
 
-        {viewMode === "grid" ? (
+        {isLoading ? (
+          <div className="text-center py-20 text-slate-500 dark:text-slate-400">加载中...</div>
+        ) : viewMode === "archive" ? (
+          <div className="max-w-3xl mx-auto space-y-8">
+            {archive.length === 0 ? (
+              <div className="text-center py-16">
+                <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center mb-4">
+                  <span className="text-4xl">📭</span>
+                </div>
+                <p className="text-slate-500 dark:text-slate-400">暂无归档内容</p>
+              </div>
+            ) : (
+              archive.map((yearData, yearIndex) => (
+                <div key={yearData.year} className="animate-fade-in-up" style={{ animationDelay: `${yearIndex * 100}ms` }}>
+                  <div className="flex items-center gap-4 mb-4">
+                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white">{yearData.year}年</h2>
+                    <span className="px-3 py-1 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-sm font-medium">
+                      {yearData.months.reduce((sum, m) => sum + m.count, 0)} 篇
+                    </span>
+                  </div>
+                  <div className="space-y-3 pl-4 border-l-2 border-indigo-200 dark:border-indigo-800">
+                    {yearData.months.map((monthData, monthIndex) => (
+                      <div key={monthData.month} className="animate-fade-in-up" style={{ animationDelay: `${yearIndex * 100 + monthIndex * 50}ms` }}>
+                        <div className="flex items-center justify-between mb-2">
+                          <h3 className="text-lg font-semibold text-slate-800 dark:text-white">{monthData.monthName}</h3>
+                          <span className="text-sm text-slate-500 dark:text-slate-400">{monthData.count} 篇</span>
+                        </div>
+                        <ul className="space-y-2">
+                          {monthData.posts.map((post) => (
+                            <li key={post.id}>
+                              <Link
+                                href={`/essay/${post.id}`}
+                                className="block p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white/70 dark:hover:bg-slate-700/50 transition-colors group"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <span className="text-slate-700 dark:text-slate-300 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    {post.title}
+                                  </span>
+                                  <span className="text-xs text-slate-400">
+                                    {formatDate(post.date)}
+                                  </span>
+                                </div>
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        ) : posts.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center mb-4">
+              <span className="text-4xl">📭</span>
+            </div>
+            <p className="text-slate-500 dark:text-slate-400">暂无相关内容</p>
+          </div>
+        ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredPosts.map((post, index) => (
+            {posts.map((post, index) => (
               <div
                 key={post.id}
                 className="group relative rounded-2xl overflow-hidden bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/20 dark:border-slate-700/30 shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-1"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
                 <div className="relative aspect-video overflow-hidden">
-                  <img
-                    src={post.image}
-                    alt={post.title}
-                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                  />
+                  {post.cover ? (
+                    <img
+                      src={post.cover}
+                      alt={post.title}
+                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-slate-700 dark:to-slate-800" />
+                  )}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                   <span className="absolute top-3 left-3 px-2 py-1 rounded-lg bg-black/50 text-white text-xs font-medium">
-                    {post.date}
+                    {formatDate(post.created_at)}
                   </span>
                 </div>
                 <div className="p-4">
@@ -195,7 +263,7 @@ export default function TimelinePage() {
                     {post.title}
                   </h3>
                   <p className="text-sm text-slate-500 dark:text-slate-400 mb-3 line-clamp-1">
-                    {post.description}
+                    {post.excerpt}
                   </p>
                   <div className="flex flex-wrap gap-1">
                     {post.tags.map((tag) => (
@@ -215,7 +283,7 @@ export default function TimelinePage() {
           <div className="relative max-w-3xl mx-auto">
             <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-indigo-500 via-purple-500 to-pink-500" />
             <div className="space-y-8">
-              {filteredPosts.map((post, index) => (
+              {posts.map((post, index) => (
                 <div
                   key={post.id}
                   className={`relative flex items-start gap-3 sm:gap-6 animate-fade-in-up ${
@@ -226,14 +294,18 @@ export default function TimelinePage() {
                   <div className={`flex-1 ${index % 2 === 0 ? "md:text-right" : "md:text-left"}`}>
                     <div className="inline-block max-w-md rounded-2xl overflow-hidden bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/20 dark:border-slate-700/30 shadow-sm hover:shadow-lg transition-all duration-300">
                       <div className="relative aspect-video overflow-hidden">
-                        <img
-                          src={post.image}
-                          alt={post.title}
-                          className="w-full h-full object-cover"
-                        />
+                        {post.cover ? (
+                          <img
+                            src={post.cover}
+                            alt={post.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-slate-700 dark:to-slate-800" />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
                         <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/50 text-white text-xs">
-                          {post.date}
+                          {formatDate(post.created_at)}
                         </span>
                       </div>
                       <div className="p-4">
@@ -241,7 +313,7 @@ export default function TimelinePage() {
                           {post.title}
                         </h3>
                         <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 line-clamp-1">
-                          {post.description}
+                          {post.excerpt}
                         </p>
                         <div className={`flex flex-wrap gap-1 ${index % 2 === 0 ? "md:justify-end" : ""}`}>
                           {post.tags.map((tag) => (
@@ -261,15 +333,6 @@ export default function TimelinePage() {
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {filteredPosts.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-700 dark:to-slate-800 flex items-center justify-center mb-4">
-              <span className="text-4xl">📭</span>
-            </div>
-            <p className="text-slate-500 dark:text-slate-400">暂无相关内容</p>
           </div>
         )}
       </div>

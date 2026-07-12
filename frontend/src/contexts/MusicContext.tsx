@@ -45,7 +45,7 @@ const defaultTracks: Track[] = [
 ];
 
 export function MusicProvider({ children }: { children: ReactNode }) {
-  const [tracks] = useState<Track[]>(defaultTracks);
+  const [tracks, setTracks] = useState<Track[]>(defaultTracks);
   const [isInitialized, setIsInitialized] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<Track>(defaultTracks[0]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -60,9 +60,31 @@ export function MusicProvider({ children }: { children: ReactNode }) {
   const playModeRef = useRef<PlayMode>(playMode);
   const currentTrackRef = useRef<Track>(currentTrack);
 
-  // 组件初始化
+  // 组件初始化：从 API 获取音乐列表
   useEffect(() => {
-    setIsInitialized(true);
+    const fetchTracks = async () => {
+      try {
+        const res = await fetch("/api/music");
+        const data = await res.json();
+        const musicList = data.music || [];
+        if (musicList.length > 0) {
+          const apiTracks: Track[] = musicList.map((m: any) => ({
+            id: m.id,
+            title: m.title,
+            artist: m.artist || "",
+            duration: m.duration || "00:00",
+            cover: m.cover || "",
+            audio: m.url,
+          }));
+          setTracks(apiTracks);
+          setCurrentTrack(apiTracks[0]);
+        }
+      } catch (error) {
+        console.error("获取音乐列表失败，使用默认列表:", error);
+      }
+      setIsInitialized(true);
+    };
+    fetchTracks();
   }, []);
 
   // 保持 ref 与 state 同步
