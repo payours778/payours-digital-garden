@@ -11,6 +11,7 @@ const menuItems = [
   { href: "/admin/posts", label: "文章管理", icon: "📝" },
   { href: "/admin/projects", label: "项目管理", icon: "📁" },
   { href: "/admin/photos", label: "照片管理", icon: "🖼️" },
+  { href: "/admin/music", label: "音乐管理", icon: "🎵" },
 ];
 
 export default function AdminLayout({ children }: AdminLayoutProps) {

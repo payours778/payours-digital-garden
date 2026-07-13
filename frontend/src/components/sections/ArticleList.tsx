@@ -109,52 +109,42 @@ export function ArticleList() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-3 md:gap-6">
         <div className="lg:col-span-5">
           <Link href={`/${featuredArticle.slug}`}>
-            <article className="group rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500 h-full">
+            <article className="group rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500 h-full flex flex-col">
               {featuredArticle.image ? (
-                <div className="relative h-56 md:h-72 overflow-hidden">
+                <div className="relative flex-[9] overflow-hidden min-h-0">
                   <img
                     src={featuredArticle.image}
                     alt={featuredArticle.title}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                   />
-                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/70 via-transparent to-transparent" />
-                  <div className="absolute bottom-5 left-5 right-5">
-                    <span className="inline-block px-3 py-1 text-sm font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full mb-2.5">
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-900/80 via-slate-900/20 to-transparent" />
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <span className="inline-block px-3 py-1 text-sm font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full mb-2">
                       {featuredArticle.category}
                     </span>
                     <h3 className="text-xl md:text-2xl font-bold text-white group-hover:text-indigo-300 transition-colors line-clamp-2">
                       {featuredArticle.title}
                     </h3>
-                    {featuredArticle.excerpt && (
-                      <p className="text-base text-white/80 line-clamp-2 mt-2">
-                        {featuredArticle.excerpt}
-                      </p>
-                    )}
                   </div>
                 </div>
               ) : (
-                <div className="relative h-56 md:h-72 overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-full bg-white/30 dark:bg-slate-700/30 flex items-center justify-center">
-                    <svg className="w-12 h-12 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="relative flex-[9] overflow-hidden bg-gradient-to-br from-indigo-500/20 to-purple-500/20 flex items-center justify-center">
+                  <div className="w-20 h-20 rounded-full bg-white/30 dark:bg-slate-700/30 flex items-center justify-center">
+                    <svg className="w-10 h-10 text-indigo-500 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                     </svg>
                   </div>
-                  <div className="absolute bottom-5 left-5 right-5">
-                    <span className="inline-block px-3 py-1 text-sm font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full mb-2.5">
+                  <div className="absolute bottom-4 left-4 right-4">
+                    <span className="inline-block px-3 py-1 text-sm font-bold uppercase tracking-wider bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full mb-2">
                       {featuredArticle.category}
                     </span>
                     <h3 className="text-xl md:text-2xl font-bold text-slate-800 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
                       {featuredArticle.title}
                     </h3>
-                    {featuredArticle.excerpt && (
-                      <p className="text-base text-slate-600 dark:text-slate-400 line-clamp-2 mt-2">
-                        {featuredArticle.excerpt}
-                      </p>
-                    )}
                   </div>
                 </div>
               )}
-              <div className="p-5 flex items-center justify-between">
+              <div className="flex-[1] flex items-center justify-between px-4 py-3 bg-white/60 dark:bg-slate-800/60">
                 <span className="text-sm text-slate-600 dark:text-slate-300">{featuredArticle.date}</span>
                 <span className="text-sm text-indigo-500 dark:text-indigo-400 font-medium group-hover:translate-x-1 transition-transform">
                   阅读更多 →
@@ -168,7 +158,7 @@ export function ArticleList() {
           <Link href={`/${staticArticles[0].slug}`}>
             <article className="group rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500">
               {staticArticles[0].image && (
-                <div className="relative h-36 md:h-48 overflow-hidden">
+                <div className="relative h-48 md:h-64 overflow-hidden">
                   <img
                     src={staticArticles[0].image}
                     alt={staticArticles[0].title}
@@ -199,7 +189,7 @@ export function ArticleList() {
               <Link key={article.id} href={`/${article.slug}`}>
                 <article className="group rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-sm overflow-hidden hover:shadow-xl transition-all duration-500">
                   {article.image && (
-                    <div className="relative h-28 md:h-36 overflow-hidden">
+                    <div className="relative h-40 md:h-48 overflow-hidden">
                       <img
                         src={article.image}
                         alt={article.title}

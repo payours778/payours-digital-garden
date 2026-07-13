@@ -206,7 +206,7 @@ export default function TimelinePage() {
                           {monthData.posts.map((post) => (
                             <li key={post.id}>
                               <Link
-                                href={`/essay/${post.id}`}
+                                href={`/post/${post.id}`}
                                 className="block p-3 rounded-xl bg-white/50 dark:bg-slate-800/50 hover:bg-white/70 dark:hover:bg-slate-700/50 transition-colors group"
                               >
                                 <div className="flex items-center justify-between">
@@ -238,8 +238,9 @@ export default function TimelinePage() {
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {posts.map((post, index) => (
-              <div
+              <Link
                 key={post.id}
+                href={`/post/${post.id}`}
                 className="group relative rounded-2xl overflow-hidden bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/20 dark:border-slate-700/30 shadow-sm hover:shadow-xl transition-all duration-500 hover:-translate-y-1"
                 style={{ animationDelay: `${index * 100}ms` }}
               >
@@ -276,7 +277,7 @@ export default function TimelinePage() {
                     ))}
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         ) : (
@@ -292,41 +293,43 @@ export default function TimelinePage() {
                   style={{ animationDelay: `${index * 100}ms` }}
                 >
                   <div className={`flex-1 ${index % 2 === 0 ? "md:text-right" : "md:text-left"}`}>
-                    <div className="inline-block max-w-md rounded-2xl overflow-hidden bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/20 dark:border-slate-700/30 shadow-sm hover:shadow-lg transition-all duration-300">
-                      <div className="relative aspect-video overflow-hidden">
-                        {post.cover ? (
-                          <img
-                            src={post.cover}
-                            alt={post.title}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-slate-700 dark:to-slate-800" />
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
-                        <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/50 text-white text-xs">
-                          {formatDate(post.created_at)}
-                        </span>
-                      </div>
-                      <div className="p-4">
-                        <h3 className="font-bold text-slate-900 dark:text-white mb-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors cursor-pointer line-clamp-2">
-                          {post.title}
-                        </h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 line-clamp-1">
-                          {post.excerpt}
-                        </p>
-                        <div className={`flex flex-wrap gap-1 ${index % 2 === 0 ? "md:justify-end" : ""}`}>
-                          {post.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="px-2 py-0.5 rounded-full bg-indigo-100/50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs"
-                            >
-                              #{tag}
-                            </span>
-                          ))}
+                    <Link href={`/post/${post.id}`}>
+                      <div className="inline-block max-w-md rounded-2xl overflow-hidden bg-white/60 dark:bg-slate-800/60 backdrop-blur-md border border-white/20 dark:border-slate-700/30 shadow-sm hover:shadow-lg transition-all duration-300 cursor-pointer">
+                        <div className="relative aspect-video overflow-hidden">
+                          {post.cover ? (
+                            <img
+                              src={post.cover}
+                              alt={post.title}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <div className="w-full h-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-slate-700 dark:to-slate-800" />
+                          )}
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent" />
+                          <span className="absolute bottom-2 right-2 px-2 py-0.5 rounded-lg bg-black/50 text-white text-xs">
+                            {formatDate(post.created_at)}
+                          </span>
+                        </div>
+                        <div className="p-4">
+                          <h3 className="font-bold text-slate-900 dark:text-white mb-1 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors line-clamp-2">
+                            {post.title}
+                          </h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400 mb-2 line-clamp-1">
+                            {post.excerpt}
+                          </p>
+                          <div className={`flex flex-wrap gap-1 ${index % 2 === 0 ? "md:justify-end" : ""}`}>
+                            {post.tags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="px-2 py-0.5 rounded-full bg-indigo-100/50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs"
+                              >
+                                #{tag}
+                              </span>
+                            ))}
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    </Link>
                   </div>
                   <div className="absolute left-4 md:left-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-indigo-500 border-4 border-white dark:border-slate-900 shadow-lg shadow-indigo-500/50 z-10" />
                   <div className="flex-1 hidden md:block" />

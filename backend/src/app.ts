@@ -1,12 +1,16 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 import postsRouter from './routes/posts';
 import essaysRouter from './routes/essays';
 import momentsRouter from './routes/moments';
 import projectsRouter from './routes/projects';
 import photosRouter from './routes/photos';
 import musicRouter from './routes/music';
+import uploadRouter from './routes/upload';
 import getDb from './db';
+
+dotenv.config();
 
 const app = express();
 const PORT = 3001;
@@ -21,6 +25,7 @@ app.use('/api/projects', projectsRouter);
 app.use('/api/albums', photosRouter);
 app.use('/api/photos', photosRouter);
 app.use('/api/music', musicRouter);
+app.use('/api/upload', uploadRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running' });
