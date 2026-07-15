@@ -6,6 +6,7 @@ export const ossFolders: FolderConfig = {
   posts: 'posts',
   essays: 'essays',
   albums: 'albums',
+  photos: 'photos',
   projects: 'projects',
   music: 'music',
   moments: 'moments',

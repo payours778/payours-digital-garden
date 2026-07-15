@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import getDb, { saveDb } from '../db';
-import { CreateAlbumRequest, UpdateAlbumRequest } from '../models';
+import { uploadImage } from '../utils/oss';
+import { CreateAlbumRequest, UpdateAlbumRequest, CreatePhotoRequest, UpdatePhotoRequest } from '../models';
 
 const parseAlbumRow = (row: any[]) => ({
   id: row[0],
@@ -20,14 +21,12 @@ const parsePhotoRow = (row: any[]) => ({
   created_at: row[4],
 });
 
-// 获取所有相册列表
 export const getAlbums = async (req: Request, res: Response) => {
   try {
     const db = await getDb();
     const result = db.exec('SELECT * FROM albums ORDER BY created_at DESC');
     const albums = (result[0]?.values || []).map(parseAlbumRow);
 
-    // 获取每个相册的照片数
     for (const album of albums) {
       const countResult = db.exec(`SELECT COUNT(*) FROM photos WHERE album_id = ${album.id}`);
       album.photo_count = Number(countResult[0]?.values?.[0]?.[0]) || 0;
@@ -39,7 +38,6 @@ export const getAlbums = async (req: Request, res: Response) => {
   }
 };
 
-// 获取相册详情（含照片）
 export const getAlbumById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -56,6 +54,7 @@ export const getAlbumById = async (req: Request, res: Response) => {
 
     const photosResult = db.exec(`SELECT * FROM photos WHERE album_id = ${id} ORDER BY created_at DESC`);
     album.photos = (photosResult[0]?.values || []).map(parsePhotoRow);
+    album.photo_count = album.photos.length;
 
     res.json({ album });
   } catch (error) {
@@ -63,7 +62,6 @@ export const getAlbumById = async (req: Request, res: Response) => {
   }
 };
 
-// 创建相册
 export const createAlbum = async (req: Request, res: Response) => {
   try {
     const { name, description, cover_url } = req.body as CreateAlbumRequest;
@@ -101,7 +99,6 @@ export const createAlbum = async (req: Request, res: Response) => {
   }
 };
 
-// 更新相册
 export const updateAlbum = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -135,7 +132,6 @@ export const updateAlbum = async (req: Request, res: Response) => {
   }
 };
 
-// 删除相册（同时删除相册内所有照片）
 export const deleteAlbum = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -155,7 +151,47 @@ export const deleteAlbum = async (req: Request, res: Response) => {
   }
 };
 
-// 批量添加照片到相册
+export const uploadPhoto = async (req: Request, res: Response) => {
+  try {
+    const { albumId } = req.params;
+    const { description } = req.body as UpdatePhotoRequest;
+
+    if (!req.file) {
+      return res.status(400).json({ error: '请选择要上传的照片' });
+    }
+
+    const db = await getDb();
+    const albumResult = db.exec(`SELECT * FROM albums WHERE id = ${albumId}`);
+
+    if (!albumResult[0]?.values?.length) {
+      return res.status(404).json({ error: '相册不存在' });
+    }
+
+    const { buffer, originalname } = req.file;
+    const url = await uploadImage(buffer, originalname, 'photos');
+
+    const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+
+    db.run(
+      'INSERT INTO photos (album_id, url, description, created_at) VALUES (?, ?, ?, ?)',
+      [albumId, url, description || '', now]
+    );
+
+    const maxIdResult = db.exec('SELECT MAX(id) FROM photos');
+    const lastId = maxIdResult[0]?.values?.[0]?.[0];
+
+    await saveDb();
+
+    const photoResult = db.exec(`SELECT * FROM photos WHERE id = ${lastId}`);
+    const row = photoResult[0]?.values?.[0];
+
+    res.status(201).json({ photo: row ? parsePhotoRow(row) : null });
+  } catch (error: any) {
+    console.error('上传照片失败:', error);
+    res.status(500).json({ error: `上传照片失败: ${error.message}` });
+  }
+};
+
 export const addPhotos = async (req: Request, res: Response) => {
   try {
     const { albumId } = req.params;
@@ -192,7 +228,32 @@ export const addPhotos = async (req: Request, res: Response) => {
   }
 };
 
-// 删除单张照片
+export const updatePhoto = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { description } = req.body as UpdatePhotoRequest;
+
+    const db = await getDb();
+    const existingResult = db.exec(`SELECT * FROM photos WHERE id = ${id}`);
+
+    if (!existingResult[0]?.values?.length) {
+      return res.status(404).json({ error: '照片不存在' });
+    }
+
+    if (description !== undefined) {
+      db.run(`UPDATE photos SET description = ? WHERE id = ${id}`, [description]);
+      await saveDb();
+    }
+
+    const updatedResult = db.exec(`SELECT * FROM photos WHERE id = ${id}`);
+    const row = updatedResult[0]?.values?.[0];
+
+    res.json({ photo: parsePhotoRow(row!) });
+  } catch (error) {
+    res.status(500).json({ error: '更新照片失败' });
+  }
+};
+
 export const deletePhoto = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -211,7 +272,6 @@ export const deletePhoto = async (req: Request, res: Response) => {
   }
 };
 
-// 获取所有照片
 export const getAllPhotos = async (req: Request, res: Response) => {
   try {
     const db = await getDb();
@@ -220,5 +280,50 @@ export const getAllPhotos = async (req: Request, res: Response) => {
     res.json({ photos });
   } catch (error) {
     res.status(500).json({ error: '获取照片列表失败' });
+  }
+};
+
+export const searchPhotos = async (req: Request, res: Response) => {
+  try {
+    const { keyword, album_id, page = 1, limit = 20 } = req.query;
+
+    const db = await getDb();
+    let query = 'SELECT * FROM photos WHERE 1=1';
+    const params: any[] = [];
+
+    if (keyword) {
+      query += ' AND (description LIKE ? OR url LIKE ?)';
+      params.push(`%${keyword}%`, `%${keyword}%`);
+    }
+
+    if (album_id) {
+      query += ' AND album_id = ?';
+      params.push(Number(album_id));
+    }
+
+    query += ' ORDER BY created_at DESC';
+
+    const offset = (Number(page) - 1) * Number(limit);
+    query += ' LIMIT ? OFFSET ?';
+    params.push(Number(limit), offset);
+
+    const result = db.exec(query, params);
+    const photos = (result[0]?.values || []).map(parsePhotoRow);
+
+    const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)').replace('ORDER BY created_at DESC', '').replace('LIMIT ? OFFSET ?', '');
+    const countResult = db.exec(countQuery, params.slice(0, -2));
+    const total = Number(countResult[0]?.values?.[0]?.[0]) || 0;
+
+    res.json({
+      photos,
+      pagination: {
+        page: Number(page),
+        limit: Number(limit),
+        total,
+        pages: Math.ceil(total / Number(limit)),
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ error: '搜索照片失败' });
   }
 };

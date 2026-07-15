@@ -101,6 +101,22 @@ export interface UpdateAlbumRequest {
   cover_url?: string;
 }
 
+export interface CreatePhotoRequest {
+  url: string;
+  description?: string;
+}
+
+export interface UpdatePhotoRequest {
+  description?: string;
+}
+
+export interface PhotoSearchRequest {
+  keyword?: string;
+  album_id?: number;
+  page?: number;
+  limit?: number;
+}
+
 export interface Music {
   id: number;
   title: string;
