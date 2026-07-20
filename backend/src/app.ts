@@ -8,6 +8,7 @@ import projectsRouter from './routes/projects';
 import photosRouter from './routes/photos';
 import musicRouter from './routes/music';
 import uploadRouter from './routes/upload';
+import fishRouter from './routes/fish';
 import getDb from './db';
 
 dotenv.config();
@@ -26,6 +27,7 @@ app.use('/api/albums', photosRouter);
 app.use('/api/photos', photosRouter);
 app.use('/api/music', musicRouter);
 app.use('/api/upload', uploadRouter);
+app.use('/api/fish', fishRouter);
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running' });
