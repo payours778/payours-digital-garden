@@ -164,7 +164,7 @@ export async function getDb(): Promise<Database> {
   // 初始化10个固定房间码
   const fixedCodes = ['FISH01', 'FISH02', 'FISH03', 'FISH04', 'FISH05', 'FISH06', 'FISH07', 'FISH08', 'FISH09', 'FISH10'];
   fixedCodes.forEach((code) => {
-    db.run("INSERT OR IGNORE INTO fish_rooms (code) VALUES (?)", [code]);
+    db!.run("INSERT OR IGNORE INTO fish_rooms (code) VALUES (?)", [code]);
   });
 
   return db;

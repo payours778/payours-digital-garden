@@ -33,8 +33,9 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAllPhotos = exports.deletePhoto = exports.addPhotos = exports.deleteAlbum = exports.updateAlbum = exports.createAlbum = exports.getAlbumById = exports.getAlbums = void 0;
+exports.searchPhotos = exports.getAllPhotos = exports.deletePhoto = exports.updatePhoto = exports.addPhotos = exports.uploadPhoto = exports.deleteAlbum = exports.updateAlbum = exports.createAlbum = exports.getAlbumById = exports.getAlbums = void 0;
 const db_1 = __importStar(require("../db"));
+const oss_1 = require("../utils/oss");
 const parseAlbumRow = (row) => ({
     id: row[0],
     name: row[1],
@@ -51,13 +52,11 @@ const parsePhotoRow = (row) => ({
     description: row[3],
     created_at: row[4],
 });
-// 获取所有相册列表
 const getAlbums = async (req, res) => {
     try {
         const db = await (0, db_1.default)();
         const result = db.exec('SELECT * FROM albums ORDER BY created_at DESC');
         const albums = (result[0]?.values || []).map(parseAlbumRow);
-        // 获取每个相册的照片数
         for (const album of albums) {
             const countResult = db.exec(`SELECT COUNT(*) FROM photos WHERE album_id = ${album.id}`);
             album.photo_count = Number(countResult[0]?.values?.[0]?.[0]) || 0;
@@ -69,7 +68,6 @@ const getAlbums = async (req, res) => {
     }
 };
 exports.getAlbums = getAlbums;
-// 获取相册详情（含照片）
 const getAlbumById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -82,6 +80,7 @@ const getAlbumById = async (req, res) => {
         const album = parseAlbumRow(albumRows[0]);
         const photosResult = db.exec(`SELECT * FROM photos WHERE album_id = ${id} ORDER BY created_at DESC`);
         album.photos = (photosResult[0]?.values || []).map(parsePhotoRow);
+        album.photo_count = album.photos.length;
         res.json({ album });
     }
     catch (error) {
@@ -89,7 +88,6 @@ const getAlbumById = async (req, res) => {
     }
 };
 exports.getAlbumById = getAlbumById;
-// 创建相册
 const createAlbum = async (req, res) => {
     try {
         const { name, description, cover_url } = req.body;
@@ -117,7 +115,6 @@ const createAlbum = async (req, res) => {
     }
 };
 exports.createAlbum = createAlbum;
-// 更新相册
 const updateAlbum = async (req, res) => {
     try {
         const { id } = req.params;
@@ -154,7 +151,6 @@ const updateAlbum = async (req, res) => {
     }
 };
 exports.updateAlbum = updateAlbum;
-// 删除相册（同时删除相册内所有照片）
 const deleteAlbum = async (req, res) => {
     try {
         const { id } = req.params;
@@ -173,7 +169,35 @@ const deleteAlbum = async (req, res) => {
     }
 };
 exports.deleteAlbum = deleteAlbum;
-// 批量添加照片到相册
+const uploadPhoto = async (req, res) => {
+    try {
+        const { albumId } = req.params;
+        const { description } = req.body;
+        if (!req.file) {
+            return res.status(400).json({ error: '请选择要上传的照片' });
+        }
+        const db = await (0, db_1.default)();
+        const albumResult = db.exec(`SELECT * FROM albums WHERE id = ${albumId}`);
+        if (!albumResult[0]?.values?.length) {
+            return res.status(404).json({ error: '相册不存在' });
+        }
+        const { buffer, originalname } = req.file;
+        const url = await (0, oss_1.uploadImage)(buffer, originalname, 'photos');
+        const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
+        db.run('INSERT INTO photos (album_id, url, description, created_at) VALUES (?, ?, ?, ?)', [albumId, url, description || '', now]);
+        const maxIdResult = db.exec('SELECT MAX(id) FROM photos');
+        const lastId = maxIdResult[0]?.values?.[0]?.[0];
+        await (0, db_1.saveDb)();
+        const photoResult = db.exec(`SELECT * FROM photos WHERE id = ${lastId}`);
+        const row = photoResult[0]?.values?.[0];
+        res.status(201).json({ photo: row ? parsePhotoRow(row) : null });
+    }
+    catch (error) {
+        console.error('上传照片失败:', error);
+        res.status(500).json({ error: `上传照片失败: ${error.message}` });
+    }
+};
+exports.uploadPhoto = uploadPhoto;
 const addPhotos = async (req, res) => {
     try {
         const { albumId } = req.params;
@@ -200,7 +224,28 @@ const addPhotos = async (req, res) => {
     }
 };
 exports.addPhotos = addPhotos;
-// 删除单张照片
+const updatePhoto = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { description } = req.body;
+        const db = await (0, db_1.default)();
+        const existingResult = db.exec(`SELECT * FROM photos WHERE id = ${id}`);
+        if (!existingResult[0]?.values?.length) {
+            return res.status(404).json({ error: '照片不存在' });
+        }
+        if (description !== undefined) {
+            db.run(`UPDATE photos SET description = ? WHERE id = ${id}`, [description]);
+            await (0, db_1.saveDb)();
+        }
+        const updatedResult = db.exec(`SELECT * FROM photos WHERE id = ${id}`);
+        const row = updatedResult[0]?.values?.[0];
+        res.json({ photo: parsePhotoRow(row) });
+    }
+    catch (error) {
+        res.status(500).json({ error: '更新照片失败' });
+    }
+};
+exports.updatePhoto = updatePhoto;
 const deletePhoto = async (req, res) => {
     try {
         const { id } = req.params;
@@ -218,7 +263,6 @@ const deletePhoto = async (req, res) => {
     }
 };
 exports.deletePhoto = deletePhoto;
-// 获取所有照片
 const getAllPhotos = async (req, res) => {
     try {
         const db = await (0, db_1.default)();
@@ -231,4 +275,42 @@ const getAllPhotos = async (req, res) => {
     }
 };
 exports.getAllPhotos = getAllPhotos;
+const searchPhotos = async (req, res) => {
+    try {
+        const { keyword, album_id, page = 1, limit = 20 } = req.query;
+        const db = await (0, db_1.default)();
+        let query = 'SELECT * FROM photos WHERE 1=1';
+        const params = [];
+        if (keyword) {
+            query += ' AND (description LIKE ? OR url LIKE ?)';
+            params.push(`%${keyword}%`, `%${keyword}%`);
+        }
+        if (album_id) {
+            query += ' AND album_id = ?';
+            params.push(Number(album_id));
+        }
+        query += ' ORDER BY created_at DESC';
+        const offset = (Number(page) - 1) * Number(limit);
+        query += ' LIMIT ? OFFSET ?';
+        params.push(Number(limit), offset);
+        const result = db.exec(query, params);
+        const photos = (result[0]?.values || []).map(parsePhotoRow);
+        const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)').replace('ORDER BY created_at DESC', '').replace('LIMIT ? OFFSET ?', '');
+        const countResult = db.exec(countQuery, params.slice(0, -2));
+        const total = Number(countResult[0]?.values?.[0]?.[0]) || 0;
+        res.json({
+            photos,
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+                total,
+                pages: Math.ceil(total / Number(limit)),
+            },
+        });
+    }
+    catch (error) {
+        res.status(500).json({ error: '搜索照片失败' });
+    }
+};
+exports.searchPhotos = searchPhotos;
 //# sourceMappingURL=photoController.js.map

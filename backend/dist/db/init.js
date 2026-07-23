@@ -110,6 +110,37 @@ CREATE TABLE IF NOT EXISTS music (
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS fish_rooms (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT UNIQUE NOT NULL,
+    participant1_id INTEGER,
+    participant1_nickname TEXT,
+    participant2_id INTEGER,
+    participant2_nickname TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS fish_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    room_id INTEGER,
+    sender_id INTEGER,
+    sender_nickname TEXT,
+    content TEXT NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (room_id) REFERENCES fish_rooms(id) ON DELETE CASCADE
+);
+
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH01');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH02');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH03');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH04');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH05');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH06');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH07');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH08');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH09');
+INSERT OR IGNORE INTO fish_rooms (code) VALUES ('FISH10');
+
 INSERT OR IGNORE INTO users (username, password, role) VALUES ('admin', 'admin123', 'admin');
 `;
 async function initDatabase() {

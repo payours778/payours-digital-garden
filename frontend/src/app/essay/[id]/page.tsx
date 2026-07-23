@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { use } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 
@@ -540,8 +540,9 @@ const essays: Essay[] = [
   },
 ];
 
-export default function EssayDetail({ params }: { params: { id: string } }) {
-  const essay = essays.find((e) => e.id === parseInt(params.id));
+export default function EssayDetail({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params);
+  const essay = essays.find((e) => e.id === parseInt(id));
 
   if (!essay) {
     return (

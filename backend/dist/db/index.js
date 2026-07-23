@@ -108,6 +108,24 @@ async function getDb() {
       duration TEXT DEFAULT '00:00',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
+    CREATE TABLE IF NOT EXISTS fish_rooms (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT UNIQUE NOT NULL,
+      participant1_id INTEGER,
+      participant1_nickname TEXT,
+      participant2_id INTEGER,
+      participant2_nickname TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE TABLE IF NOT EXISTS fish_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      room_id INTEGER,
+      sender_id INTEGER,
+      sender_nickname TEXT,
+      content TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (room_id) REFERENCES fish_rooms(id) ON DELETE CASCADE
+    );
   `);
     // 自动迁移：给旧 posts 表补 tags 字段（如果不存在）
     const postsCols = db.exec("PRAGMA table_info(posts)");
@@ -121,6 +139,27 @@ async function getDb() {
     if (!hasDuration) {
         db.run("ALTER TABLE music ADD COLUMN duration TEXT DEFAULT '00:00'");
     }
+    // 自动迁移：给旧 fish_rooms 表补 nickname 字段（如果不存在）
+    const fishRoomsCols = db.exec("PRAGMA table_info(fish_rooms)");
+    const hasP1Nick = fishRoomsCols[0]?.values?.some((row) => row[1] === 'participant1_nickname');
+    if (!hasP1Nick) {
+        db.run("ALTER TABLE fish_rooms ADD COLUMN participant1_nickname TEXT DEFAULT '用户1'");
+    }
+    const hasP2Nick = fishRoomsCols[0]?.values?.some((row) => row[1] === 'participant2_nickname');
+    if (!hasP2Nick) {
+        db.run("ALTER TABLE fish_rooms ADD COLUMN participant2_nickname TEXT DEFAULT '用户2'");
+    }
+    // 自动迁移：给旧 fish_messages 表补 sender_nickname 字段（如果不存在）
+    const fishMessagesCols = db.exec("PRAGMA table_info(fish_messages)");
+    const hasSenderNick = fishMessagesCols[0]?.values?.some((row) => row[1] === 'sender_nickname');
+    if (!hasSenderNick) {
+        db.run("ALTER TABLE fish_messages ADD COLUMN sender_nickname TEXT");
+    }
+    // 初始化10个固定房间码
+    const fixedCodes = ['FISH01', 'FISH02', 'FISH03', 'FISH04', 'FISH05', 'FISH06', 'FISH07', 'FISH08', 'FISH09', 'FISH10'];
+    fixedCodes.forEach((code) => {
+        db.run("INSERT OR IGNORE INTO fish_rooms (code) VALUES (?)", [code]);
+    });
     return db;
 }
 async function saveDb() {
