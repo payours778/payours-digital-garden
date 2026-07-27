@@ -1,388 +1,605 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
+import { Send, LogOut, Users, MessageSquare, User, Plus, ArrowRight } from "lucide-react";
+
+interface Participant {
+  id: number;
+  room_id: number;
+  token: string;
+  nickname: string;
+  joined_at: string;
+  last_active: string;
+}
 
 interface Room {
   id: number;
   code: string;
-  participant1_id: number;
-  participant1_nickname: string;
-  participant2_id: number | null;
-  participant2_nickname: string;
+  max_participants: number;
+  participants: Participant[];
   created_at: string;
 }
 
 interface Message {
   id: number;
   room_id: number;
-  sender_id: number;
   sender_nickname: string;
   content: string;
   created_at: string;
 }
 
-type PageState = "landing" | "creating" | "joining" | "waiting" | "chatting";
+interface SavedRoom {
+  code: string;
+  nickname: string;
+  lastSeen: string;
+}
+
+const LS_NICKNAME = "fish_nickname";
+const LS_TOKEN = "fish_token";
+const LS_ROOM_CODE = "fish_room_code";
+const LS_ROOM_ID = "fish_room_id";
+const LS_ROOMS = "fish_saved_rooms";
 
 export default function FishPage() {
-  const [pageState, setPageState] = useState<PageState>("landing");
-  const [room, setRoom] = useState<Room | null>(null);
+  const [nickname, setNickname] = useState("");
   const [joinCode, setJoinCode] = useState("");
+  const [room, setRoom] = useState<Room | null>(null);
+  const [participantToken, setParticipantToken] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [inputMessage, setInputMessage] = useState("");
-  const [isMe, setIsMe] = useState(true);
-  const [myNickname, setMyNickname] = useState("");
-  const [otherNickname, setOtherNickname] = useState("");
+  const [isChatting, setIsChatting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [sendingMsg, setSendingMsg] = useState("");
+  const [showJoin, setShowJoin] = useState(false);
+  const [savedRooms, setSavedRooms] = useState<SavedRoom[]>([]);
+  const [roomStatus, setRoomStatus] = useState<Record<string, { count: number; max: number }>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastMsgIdRef = useRef(0);
 
+  // Scroll to latest messages
   useEffect(() => {
-    if (pageState === "waiting" && room) {
-      const interval = setInterval(async () => {
-        try {
-          const res = await fetch(`/api/fish/room/${room.code}`);
-          const data = await res.json();
-          if (data.room && data.room.participant2_id) {
-            setRoom(data.room);
-            setOtherNickname(data.room.participant2_nickname);
-            setPageState("chatting");
-            fetchMessages(data.room.id);
-          }
-        } catch (error) {
-          console.error("轮询失败:", error);
-        }
-      }, 2000);
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
-      return () => clearInterval(interval);
-    }
-  }, [pageState, room]);
-
+  // Restore session on load
   useEffect(() => {
-    if (pageState === "chatting" && room) {
-      const interval = setInterval(() => {
-        fetchMessages(room.id);
-      }, 3000);
+    const savedNick = localStorage.getItem(LS_NICKNAME);
+    const savedToken = localStorage.getItem(LS_TOKEN);
+    const savedRoomCode = localStorage.getItem(LS_ROOM_CODE);
+    const savedRoomId = localStorage.getItem(LS_ROOM_ID);
 
-      return () => clearInterval(interval);
+    if (savedNick) setNickname(savedNick);
+
+    // Load saved room history
+    loadSavedRooms();
+
+    if (savedToken && savedRoomCode && savedRoomId) {
+      restoreSession(savedToken, savedRoomCode, parseInt(savedRoomId), savedNick || "");
+    } else {
+      setIsLoading(false);
     }
-  }, [pageState, room]);
+  }, []);
 
-  const fetchMessages = async (roomId: number) => {
+  const loadSavedRooms = () => {
     try {
-      const res = await fetch(`/api/fish/room/${roomId}/messages`);
-      const data = await res.json();
-      if (data.messages && data.messages.length > 0) {
-        setMessages(prev => {
-          const existingIds = new Set(prev.map(m => m.id));
-          const newMessages = data.messages.filter((m: Message) => !existingIds.has(m.id));
-          if (newMessages.length === 0) return prev;
-          return [...prev, ...newMessages];
+      const raw = localStorage.getItem(LS_ROOMS);
+      if (raw) {
+        const rooms: SavedRoom[] = JSON.parse(raw);
+        setSavedRooms(rooms);
+        // Fetch status for each room
+        rooms.forEach(r => {
+          fetch("/api/fish/room/" + encodeURIComponent(r.code))
+            .then(res => res.json())
+            .then(data => {
+              if (data.room) {
+                setRoomStatus(prev => ({ ...prev, [r.code]: { count: data.room.participants.length, max: data.room.max_participants } }));
+              }
+            })
+            .catch(() => {});
         });
       }
-    } catch (error) {
-      console.error("获取消息失败:", error);
+    } catch {}
+  };
+
+  const saveRoomToHistory = (code: string, nick: string) => {
+    const existing = localStorage.getItem(LS_ROOMS);
+    let rooms: SavedRoom[] = existing ? JSON.parse(existing) : [];
+    rooms = rooms.filter(r => r.code !== code);
+    rooms.unshift({ code, nickname: nick, lastSeen: new Date().toISOString() });
+    if (rooms.length > 20) rooms = rooms.slice(0, 20);
+    localStorage.setItem(LS_ROOMS, JSON.stringify(rooms));
+    setSavedRooms(rooms);
+  };
+
+  const removeRoomFromHistory = (code: string) => {
+    const existing = localStorage.getItem(LS_ROOMS);
+    let rooms: SavedRoom[] = existing ? JSON.parse(existing) : [];
+    rooms = rooms.filter(r => r.code !== code);
+    localStorage.setItem(LS_ROOMS, JSON.stringify(rooms));
+    setSavedRooms(rooms);
+    setRoomStatus(prev => {
+      const copy = { ...prev };
+      delete copy[code];
+      return copy;
+    });
+  };
+
+  const handleEnterSavedRoom = async (code: string, nick: string) => {
+    setIsLoading(true);
+    try {
+      const joinRes = await fetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: nick }),
+      });
+      if (!joinRes.ok) {
+        alert("房间不可用");
+        return;
+      }
+      const data = await joinRes.json();
+      saveSession(nick, data.participantToken, data.room.code, data.room.id);
+      saveRoomToHistory(data.room.code, nick);
+      setRoom(data.room);
+      setParticipantToken(data.participantToken);
+      lastMsgIdRef.current = 0;
+      setMessages([]);
+      setIsChatting(true);
+    } catch {
+      alert("进入房间失败");
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleCreateRoom = async () => {
-    if (!myNickname.trim()) {
-      alert("请先输入你的昵称");
-      return;
-    }
+  const restoreSession = async (token: string, code: string, roomId: number, nick: string) => {
     try {
-      setPageState("creating");
+      // Try to use existing token first
+      const pRes = await fetch("/api/fish/participant?participantToken=" + encodeURIComponent(token));
+      if (pRes.ok) {
+        // Token is still valid - restore directly
+        const rRes = await fetch("/api/fish/room/" + encodeURIComponent(code) + "/full?participantToken=" + encodeURIComponent(token));
+        if (rRes.ok) {
+          const rData = await rRes.json();
+          setRoom(rData.room);
+          setParticipantToken(token);
+          setIsChatting(true);
+          fetchMessages(token, roomId);
+          return;
+        }
+      }
+      // Token expired or room gone - re-join with same nickname (creates new token)
+      const joinRes = await fetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nickname: nick }),
+      });
+      if (!joinRes.ok) throw new Error("cannot rejoin");
+      const joinData = await joinRes.json();
+      saveSession(nick, joinData.participantToken, joinData.room.code, joinData.room.id);
+      setRoom(joinData.room);
+      setParticipantToken(joinData.participantToken);
+      setIsChatting(true);
+      fetchMessages(joinData.participantToken, joinData.room.id);
+    } catch {
+      clearSession();
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const fetchMessages = useCallback(async (token: string, roomId: number) => {
+    try {
+      const res = await fetch("/api/fish/room/" + roomId + "/messages?participantToken=" + encodeURIComponent(token));
+      if (!res.ok) return;
+      const data = await res.json();
+      const msgs: Message[] = data.messages || [];
+      if (msgs.length > 0) {
+        const lastId = msgs[msgs.length - 1].id;
+        if (lastId > lastMsgIdRef.current) {
+          lastMsgIdRef.current = lastId;
+          setMessages(msgs);
+        }
+      }
+    } catch {
+      // ignore polling errors
+    }
+  }, []);
+
+  // Polling
+  useEffect(() => {
+    if (!isChatting || !participantToken || !room) return;
+
+    fetchMessages(participantToken, room.id);
+    pollRef.current = setInterval(() => {
+      if (participantToken && room) {
+        fetchMessages(participantToken, room.id);
+      }
+    }, 2000);
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+  }, [isChatting, participantToken, room, fetchMessages]);
+
+  const handleCreateRoom = async () => {
+    if (!nickname.trim()) return;
+    setIsLoading(true);
+    try {
       const res = await fetch("/api/fish/room", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: myNickname.trim() }),
+        body: JSON.stringify({ nickname: nickname.trim() }),
       });
-      console.log("Create response status:", res.status);
       const data = await res.json();
-      console.log("Create response data:", data);
-      if (data.room) {
-        setRoom(data.room);
-        setIsMe(true);
-        setPageState("waiting");
-      } else {
-        alert(data.error || "创建房间失败");
-        setPageState("landing");
+      if (data.error) {
+        alert(data.error);
+        return;
       }
-    } catch (error) {
-      console.error("创建房间失败:", error);
-      alert("创建房间失败，请检查网络连接");
-      setPageState("landing");
+      saveSession(nickname.trim(), data.participantToken, data.room.code, data.room.id);
+      saveRoomToHistory(data.room.code, nickname.trim());
+      setRoom(data.room);
+      setParticipantToken(data.participantToken);
+      lastMsgIdRef.current = 0;
+      setMessages([]);
+      setIsChatting(true);
+    } catch {
+      alert("创建房间失败，请稍后重试");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleJoinRoom = async () => {
-    if (!myNickname.trim()) {
-      alert("请先输入你的昵称");
-      return;
-    }
-    if (!joinCode.trim()) {
-      alert("请输入对接码");
-      return;
-    }
+    const code = joinCode.trim().toUpperCase();
+    if (!nickname.trim() || !code) return;
+    setIsLoading(true);
     try {
-      setPageState("joining");
-      const res = await fetch(`/api/fish/room/${joinCode.trim()}/join`, {
+      const res = await fetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: myNickname.trim() }),
+        body: JSON.stringify({ nickname: nickname.trim() }),
       });
-      console.log("Join response status:", res.status);
       const data = await res.json();
-      console.log("Join response data:", data);
-      if (data.room) {
-        setRoom(data.room);
-        setIsMe(false);
-        setOtherNickname(data.room.participant1_nickname || "对方");
-        setPageState("chatting");
-        fetchMessages(data.room.id);
-      } else {
-        const errorMsg = data.error || "加入失败";
-        alert(errorMsg === "房间已满" ? "❌ 房间已满，请创建新房间或使用其他对接码" : errorMsg);
-        setPageState("landing");
+      if (data.error) {
+        alert(data.error);
+        return;
       }
-    } catch (error) {
-      console.error("加入房间失败:", error);
-      alert("加入失败，请检查网络连接或对接码是否正确");
-      setPageState("landing");
+      saveSession(nickname.trim(), data.participantToken, data.room.code, data.room.id);
+      saveRoomToHistory(data.room.code, nickname.trim());
+      setRoom(data.room);
+      setParticipantToken(data.participantToken);
+      lastMsgIdRef.current = 0;
+      setMessages([]);
+      setIsChatting(true);
+    } catch {
+      alert("加入房间失败，请稍后重试");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    e.stopPropagation();
-    if (!inputMessage.trim() || !room) return;
-
+    const msg = sendingMsg.trim();
+    if (!msg || !participantToken || !room) return;
+    setSendingMsg("");
     try {
-      const res = await fetch(`/api/fish/room/${room.id}/messages`, {
+      await fetch("/api/fish/room/" + room.id + "/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          senderId: isMe ? 1 : 2,
-          senderNickname: myNickname.trim(),
-          content: inputMessage.trim(),
-        }),
+        body: JSON.stringify({ participantToken, content: msg }),
       });
-      const data = await res.json();
-      if (data.message) {
-        setMessages(prev => [...prev, data.message]);
-        setInputMessage("");
-      }
-    } catch (error) {
-      console.error("发送消息失败:", error);
+      if (participantToken) fetchMessages(participantToken, room.id);
+    } catch {
+      // ignore
     }
+    inputRef.current?.focus();
   };
+
+  const handleLeaveRoom = () => {
+    clearSession();
+    setRoom(null);
+    setParticipantToken(null);
+    setMessages([]);
+    setIsChatting(false);
+    lastMsgIdRef.current = 0;
+  };
+
+  const handleFullyLeaveRoom = async () => {
+    if (!participantToken || !room) return;
+    try {
+      await fetch("/api/fish/room/" + room.id + "/leave", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ participantToken }),
+      });
+    } catch {
+      // ignore
+    }
+    handleLeaveRoom();
+  };
+
+  const handleReset = () => {
+    clearSession();
+    setRoom(null);
+    setParticipantToken(null);
+    setMessages([]);
+    setIsChatting(false);
+    lastMsgIdRef.current = 0;
+  };
+
+  function saveSession(nick: string, token: string, code: string, roomId: number) {
+    localStorage.setItem(LS_NICKNAME, nick);
+    localStorage.setItem(LS_TOKEN, token);
+    localStorage.setItem(LS_ROOM_CODE, code);
+    localStorage.setItem(LS_ROOM_ID, roomId.toString());
+  }
+
+  function clearSession() {
+    localStorage.removeItem(LS_TOKEN);
+    localStorage.removeItem(LS_ROOM_CODE);
+    localStorage.removeItem(LS_ROOM_ID);
+  }
 
   const formatTime = (dateStr: string) => {
-    const date = new Date(dateStr);
-    return `${date.getHours().toString().padStart(2, "0")}:${date.getMinutes().toString().padStart(2, "0")}`;
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
   };
 
-  return (
-    <div className="pt-24 pb-16 px-4 sm:px-6 md:px-8 min-h-screen flex items-center justify-center overflow-hidden">
-      {pageState === "landing" && (
-        <div className="text-center max-w-md w-full p-4">
-          <div className="mb-8">
-            <div className="text-6xl mb-4">🐟</div>
-            <h1 className="text-3xl font-bold text-slate-900 dark:text-white mb-2">
-              zzd摸鱼专用
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400">
-              设置昵称，开始和好友悄悄聊天~
-            </p>
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-16">
+        <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!isChatting) {
+    return (
+      <div className="min-h-screen pt-20 pb-8 px-4 flex flex-col items-center justify-center">
+        <div className="w-full max-w-md space-y-6">
+          {/* Title */}
+          <div className="text-center mb-4">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
+              <MessageSquare className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">摸鱼聊天室</h1>
+            <p className="text-sm text-slate-500 dark:text-slate-400">输入昵称，开始聊天</p>
           </div>
 
-          <div className="space-y-4">
-            <div className="relative">
+          {/* Nickname input */}
+          <div className="rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">你的昵称</label>
               <input
                 type="text"
-                value={myNickname}
-                onChange={(e) => setMyNickname(e.target.value)}
-                placeholder="请输入你的昵称"
-                className="w-full py-3 px-4 pr-20 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                value={nickname}
+                onChange={(e) => setNickname(e.target.value)}
+                placeholder="取个名字吧..."
                 maxLength={10}
+                className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
               />
+            </div>
+
+            <div className="flex gap-3">
               <button
                 onClick={handleCreateRoom}
-                className="absolute right-2 top-1/2 -translate-y-1/2 py-1.5 px-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg font-semibold shadow-lg shadow-blue-500/30 hover:shadow-xl hover:shadow-blue-500/40 transition-all duration-300 whitespace-nowrap text-sm"
+                disabled={!nickname.trim() || isLoading}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:from-indigo-600 hover:to-purple-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
               >
-                🎉 创建
+                <Plus className="w-4 h-4" />
+                创建房间
               </button>
-            </div>
-
-            <div className="relative">
-              <input
-                type="text"
-                value={joinCode}
-                onChange={(e) => setJoinCode(e.target.value)}
-                onKeyPress={(e) => e.key === "Enter" && handleJoinRoom()}
-                placeholder="输入对接码加入房间..."
-                className="w-full py-3 px-4 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-                maxLength={6}
-              />
               <button
-                onClick={handleJoinRoom}
-                className="absolute right-2 top-1/2 -translate-y-1/2 py-1.5 px-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors text-sm"
+                onClick={() => setShowJoin(!showJoin)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-medium border border-slate-200 dark:border-slate-600 hover:bg-white/70 dark:hover:bg-slate-700 transition-all"
               >
-                加入
+                <ArrowRight className="w-4 h-4" />
+                加入房间
               </button>
             </div>
+
+            {showJoin && (
+              <div className="pt-2 animate-fade-in-up">
+                <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">房间代码</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={joinCode}
+                    onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                    placeholder="例如 FISH01"
+                    maxLength={10}
+                    className="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all uppercase"
+                  />
+                  <button
+                    onClick={handleJoinRoom}
+                    disabled={!joinCode.trim() || !nickname.trim() || isLoading}
+                    className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
+                  >
+                    进入
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
-          <div className="mt-8 p-4 bg-slate-100 dark:bg-slate-800/50 rounded-xl">
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              💡 提示：创建房间后会生成一个6位对接码，分享给好友即可一起聊天
-            </p>
-          </div>
-        </div>
-      )}
+          {/* Tip */}
+          <p className="text-xs text-center text-slate-400 dark:text-slate-500">
+            昵称仅用于显示，无需注册即可聊天
+          </p>
 
-      {pageState === "creating" && (
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 dark:text-slate-400">正在创建房间...</p>
-        </div>
-      )}
-
-      {pageState === "joining" && (
-        <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-slate-600 dark:text-slate-400">正在加入房间...</p>
-        </div>
-      )}
-
-      {pageState === "waiting" && room && (
-        <div className="text-center max-w-md w-full p-4">
-          <div className="mb-6">
-            <div className="text-6xl mb-4">🔐</div>
-            <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-2">
-              房间已创建
-            </h2>
-            <p className="text-slate-500 dark:text-slate-400">等待好友加入中...</p>
-          </div>
-
-          <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/30 dark:to-blue-900/30 p-6 rounded-2xl border border-indigo-200 dark:border-indigo-800">
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-2">您的对接码</p>
-            <div className="text-4xl font-black text-indigo-600 dark:text-indigo-400 tracking-widest select-all">
-              {room.code}
+          {/* Saved rooms */}
+          {savedRooms.length > 0 && (
+            <div className="rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4">
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" />
+                我的房间
+              </h3>
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {savedRooms.map((sr) => (
+                  <div key={sr.code} className="flex items-center justify-between p-2.5 rounded-xl bg-white/50 dark:bg-slate-700/50 hover:bg-white/70 dark:hover:bg-slate-600/50 transition-colors group">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                        <MessageSquare className="w-4 h-4 text-white" />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-sm font-medium text-slate-800 dark:text-white">{sr.code}</div>
+                        <div className="text-xs text-slate-400">
+                          {roomStatus[sr.code] ? roomStatus[sr.code].count + "/" + roomStatus[sr.code].max + " 人在线" : "加载中..."}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => handleEnterSavedRoom(sr.code, sr.nickname)}
+                        className="px-3 py-1 text-xs rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:from-indigo-600 hover:to-purple-700 transition-all opacity-0 group-hover:opacity-100"
+                      >
+                        进入
+                      </button>
+                      <button
+                        onClick={() => removeRoomFromHistory(sr.code)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
+                        title="移除"
+                      >
+                        <span className="text-xs">✕</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">
-              你的昵称：<span className="text-indigo-500 font-medium">{myNickname}</span>
-            </p>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-4">
-              复制对接码分享给好友，好友输入后即可加入
-            </p>
-          </div>
-
-          <button
-            onClick={() => {
-              setPageState("landing");
-              setRoom(null);
-            }}
-            className="mt-6 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 text-sm transition-colors"
-          >
-            返回首页
-          </button>
+          )}
         </div>
-      )}
+      </div>
+    );
+  }
 
-      {pageState === "chatting" && room && (
-        <div className="w-full max-w-2xl h-[70vh] flex flex-col bg-white dark:bg-slate-800 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-700 overflow-hidden m-2 overflow-hidden">
-          <div className="px-4 sm:px-6 py-3 bg-gradient-to-r from-indigo-500 to-blue-600 text-white flex items-center justify-between">
+  // Chatting view
+  return (
+    <div className="min-h-screen pt-16 pb-4 px-4 flex flex-col">
+      <div className="flex-1 max-w-3xl mx-auto w-full flex flex-col rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-md">
+              <MessageSquare className="w-4 h-4 text-white" />
+            </div>
             <div>
-              <h2 className="font-bold text-lg">🐟 zzd摸鱼专用</h2>
-              <p className="text-xs text-white/70">
-                和 <span className="font-medium">{otherNickname || "对方"}</span> 聊天中 | 对接码: {room.code}
-              </p>
+              <div className="font-bold text-slate-800 dark:text-white text-sm">{room?.code}</div>
+              <div className="flex items-center gap-1 text-xs text-slate-400">
+                <Users className="w-3 h-3" />
+                <span>{room?.participants.length || 0} 人在线</span>
+              </div>
             </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 dark:text-slate-500 hidden sm:inline">
+              <User className="w-3 h-3 inline mr-0.5" />
+              {nickname}
+            </span>
             <button
-              onClick={() => {
-                setPageState("landing");
-                setRoom(null);
-                setMessages([]);
-                setOtherNickname("");
-              }}
-              className="text-white/70 hover:text-white transition-colors"
+              onClick={handleLeaveRoom}
+              className="p-2 rounded-lg text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 transition-colors"
+              title="返回首页（房间保留）"
             >
-              ✕
+              <LogOut className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleFullyLeaveRoom}
+              className="p-2 rounded-lg text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"
+              title="完全退出房间"
+            >
+              <span className="text-xs font-bold">X</span>
             </button>
           </div>
+        </div>
 
-          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-gradient-to-b from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-800">
-            {messages.length === 0 ? (
-              <div className="text-center py-12 text-slate-400 dark:text-slate-500">
-                <div className="text-4xl mb-2">💬</div>
-                <p>和 {otherNickname || "对方"} 打个招呼吧~</p>
-              </div>
-            ) : (
-              messages.map((msg) => (
+        {/* Participants bar */}
+        {room && room.participants.length > 0 && (
+          <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-700/50 bg-white/30 dark:bg-slate-800/30 flex flex-wrap gap-1.5">
+            {room.participants.map((p) => (
+              <span
+                key={p.id}
+                className={"px-2 py-0.5 rounded-full text-xs " + (p.nickname === nickname
+                  ? "bg-indigo-100 dark:bg-indigo-900/40 text-indigo-600 dark:text-indigo-400 font-medium"
+                  : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400")}
+              >
+                {p.nickname}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {messages.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
+              <MessageSquare className="w-10 h-10 mb-2 opacity-30" />
+              <p className="text-sm">暂无消息，发送第一条吧</p>
+            </div>
+          ) : (
+            messages.map((msg) =>
+              msg.sender_nickname === "系统" ? (
+                <div key={msg.id} className="flex justify-center">
+                  <span className="px-3 py-1 bg-slate-100 dark:bg-slate-700 text-slate-400 dark:text-slate-500 text-xs rounded-full">
+                    {msg.content}
+                  </span>
+                </div>
+              ) : (
                 <div
                   key={msg.id}
-                  className={`flex ${msg.sender_id === (isMe ? 1 : 2) ? "justify-end" : "justify-start"}`}
+                  className={"flex " + (msg.sender_nickname === nickname ? "justify-end" : "justify-start")}
                 >
-                  <div
-                    className={`max-w-[70%] ${
-                      msg.sender_id === (isMe ? 1 : 2)
-                        ? "items-end"
-                        : "items-start"
-                    } flex flex-col`}
+                  <div className={"max-w-[75%] rounded-2xl px-3.5 py-2 shadow-sm " + (msg.sender_nickname === nickname
+                    ? "bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-br-md"
+                    : "bg-white dark:bg-slate-700 text-slate-800 dark:text-white rounded-bl-md border border-slate-100 dark:border-slate-600")}
                   >
-                    <div
-                      className={`text-xs mb-1 ${
-                        msg.sender_id === (isMe ? 1 : 2) ? "text-white/60" : "text-slate-500 dark:text-slate-400"
-                      } ${
-                        msg.sender_id === (isMe ? 1 : 2) ? "text-right" : "text-left"
-                      }`}
+                    {msg.sender_nickname !== nickname && (
+                      <div className="text-xs font-medium text-indigo-500 dark:text-indigo-400 mb-0.5">
+                        {msg.sender_nickname}
+                      </div>
+                    )}
+                    <div className="text-sm leading-relaxed break-words">{msg.content}</div>
+                    <div className={"text-right text-xs mt-0.5 " + (msg.sender_nickname === nickname
+                      ? "text-white/60" : "text-slate-400 dark:text-slate-500")}
                     >
-                      {msg.sender_nickname || "未知"}
-                    </div>
-                    <div
-                      className={`px-4 py-2 rounded-2xl ${
-                        msg.sender_id === (isMe ? 1 : 2)
-                          ? "bg-indigo-500 text-white rounded-tr-sm"
-                          : "bg-white dark:bg-slate-700 text-slate-900 dark:text-white rounded-tl-sm shadow-sm"
-                      }`}
-                    >
-                      <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-                      <p
-                        className={`text-xs mt-1 ${
-                          msg.sender_id === (isMe ? 1 : 2) ? "text-white/60" : "text-slate-400 dark:text-slate-500"
-                        }`}
-                      >
-                        {formatTime(msg.created_at)}
-                      </p>
+                      {formatTime(msg.created_at)}
                     </div>
                   </div>
                 </div>
-              ))
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          <form onSubmit={handleSendMessage} className="p-2 sm:p-3 border-t border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={inputMessage}
-                onChange={(e) => setInputMessage(e.target.value)}
-                placeholder="输入消息..."
-                className="flex-1 px-3 py-1.5 bg-slate-100 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded-xl text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm"
-              />
-              <button
-                type="submit"
-                disabled={!inputMessage.trim()}
-                className="px-4 py-1.5 bg-indigo-500 text-white rounded-xl font-medium hover:bg-indigo-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-              >
-                发送
-              </button>
-            </div>
-            <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 text-right">
-              你：{myNickname}
-            </p>
-          </form>
+              )
+            )
+          )}
+          <div ref={messagesEndRef} />
         </div>
-      )}
+
+        {/* Input */}
+        <form onSubmit={handleSendMessage} className="px-4 py-3 border-t border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50">
+          <div className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
+              value={sendingMsg}
+              onChange={(e) => setSendingMsg(e.target.value)}
+              placeholder="输入消息..."
+              maxLength={500}
+              className="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all text-sm"
+            />
+            <button
+              type="submit"
+              disabled={!sendingMsg.trim()}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:from-indigo-600 hover:to-purple-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20 flex items-center gap-1.5"
+            >
+              <Send className="w-4 h-4" />
+              <span className="hidden sm:inline text-sm">发送</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

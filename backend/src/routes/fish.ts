@@ -3,11 +3,12 @@ import {
   createRoom,
   joinRoom,
   getRoomByCode,
+  getRoomByCodeFull,
   sendMessage,
   getMessages,
-  deleteRoom,
   getRoomsList,
-  resetRoom,
+  leaveRoom,
+  getParticipantInfo,
 } from '../controllers/fishController';
 
 const router = Router();
@@ -15,10 +16,11 @@ const router = Router();
 router.post('/room', createRoom);
 router.post('/room/:code/join', joinRoom);
 router.get('/room/:code', getRoomByCode);
+router.get('/room/:code/full', getRoomByCodeFull);
 router.post('/room/:roomId/messages', sendMessage);
 router.get('/room/:roomId/messages', getMessages);
-router.delete('/room/:roomId', deleteRoom);
+router.post('/room/:roomId/leave', leaveRoom);
 router.get('/rooms', getRoomsList);
-router.post('/room/:roomId/reset', resetRoom);
+router.get('/participant', getParticipantInfo);
 
 export default router;
