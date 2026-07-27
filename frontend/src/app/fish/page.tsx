@@ -57,9 +57,12 @@ export default function FishPage() {
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const lastMsgIdRef = useRef(0);
 
-  // Scroll to latest messages
+  // Scroll messages container to latest
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+    }
   }, [messages]);
 
   // Restore session on load
@@ -480,7 +483,7 @@ export default function FishPage() {
 
   // Chatting view
   return (
-    <div className="min-h-screen pt-16 pb-4 px-4 flex flex-col">
+    <div className="h-dvh pt-16 pb-4 px-4 flex flex-col">
       <div className="flex-1 max-w-3xl mx-auto w-full flex flex-col rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50">
@@ -535,7 +538,7 @@ export default function FishPage() {
         )}
 
         {/* Messages */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+        <div ref={messagesContainerRef} className="flex-1 overflow-y-auto p-4 space-y-2">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-500">
               <MessageSquare className="w-10 h-10 mb-2 opacity-30" />
