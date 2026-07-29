@@ -54,7 +54,7 @@ export function Header() {
     <header
       ref={menuRef}
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b bg-white/40 dark:bg-slate-900/50 backdrop-blur-xl border-white/20 dark:border-white/5 shadow-sm",
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-500 border-b surface-card backdrop-blur-xl border-theme shadow-sm",
         // 移动端不滚动隐藏，确保汉堡菜单始终可点
         isScrolled && "md:-translate-y-full"
       )}
@@ -62,7 +62,7 @@ export function Header() {
       <div className="w-[90%] max-w-6xl mx-auto h-16 flex items-center justify-between px-4 sm:px-[30px] box-border">
         <Link
           href="/"
-          className="text-xl font-black text-slate-800 dark:text-white tracking-tighter hover:text-indigo-600 dark:hover:text-indigo-400 transition-all duration-300"
+          className="text-xl font-black text-primary tracking-tighter hover:text-accent transition-all duration-300"
         >
           Payours<span className="text-indigo-500 mx-1">の</span>空中花园
         </Link>
@@ -79,8 +79,8 @@ export function Header() {
                   className={cn(
                     "relative py-1 transition-colors",
                     isActive
-                      ? "text-indigo-600 dark:text-indigo-400"
-                      : "text-slate-700 dark:text-slate-200 hover:text-indigo-600 dark:hover:text-indigo-400"
+                      ? "text-accent"
+                      : "text-secondary hover:text-accent"
                   )}
                 >
                   {item.label}
@@ -99,7 +99,7 @@ export function Header() {
             aria-label="菜单"
           >
             <svg
-              className="w-5 h-5 text-slate-700 dark:text-slate-200"
+              className="w-5 h-5 text-primary"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -120,7 +120,7 @@ export function Header() {
 
       {/* 移动端下拉菜单 */}
       {mobileMenuOpen && (
-        <nav className="md:hidden bg-transparent border-t border-white/20 dark:border-white/5">
+        <nav className="md:hidden bg-transparent border-t border-theme">
           <div className="w-[90%] max-w-6xl mx-auto py-3 grid grid-cols-3 gap-1">
             {navItems.map((item) => {
               const isActive = pathname === item.href;
@@ -132,7 +132,7 @@ export function Header() {
                     "px-3 py-2 rounded-lg text-sm font-medium text-center transition-colors",
                     isActive
                       ? "bg-indigo-500 text-white"
-                      : "text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                      : "text-secondary hover:surface-card-hover"
                   )}
                 >
                   {item.label}

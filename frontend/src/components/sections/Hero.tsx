@@ -8,11 +8,11 @@ export function Hero() {
       </div>
 
       <div className="relative z-10 text-center max-w-3xl mx-auto space-y-4 md:space-y-6">
-        <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight text-slate-800 dark:text-white animate-fade-in-up">
+        <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight text-primary animate-fade-in-up">
           Payours<span className="text-indigo-500 mx-2">の</span>空中花园
         </h1>
 
-        <p className="text-sm md:text-lg sm:text-xl text-slate-600 dark:text-slate-300 leading-relaxed animate-fade-in-up animation-delay-200 max-w-2xl mx-auto">
+        <p className="text-sm md:text-lg sm:text-xl text-secondary leading-relaxed animate-fade-in-up animation-delay-200 max-w-2xl mx-auto">
           一位普通程序员，热爱技术、文学与音乐。<br />
           在这里分享学习心得，以及我过往的人生。
         </p>
@@ -26,7 +26,7 @@ export function Hero() {
           </a>
           <a
             href="/timeline"
-            className="px-5 py-2 md:px-6 md:py-2.5 rounded-full bg-white/30 dark:bg-slate-800/30 text-slate-700 dark:text-slate-200 text-sm md:text-base font-medium border border-white/40 dark:border-slate-700/40 hover:border-indigo-500 dark:hover:border-indigo-400 transition-all duration-300 hover:scale-105"
+            className="px-5 py-2 md:px-6 md:py-2.5 rounded-full surface-card text-secondary text-sm md:text-base font-medium border border-theme hover:border-indigo-500 transition-all duration-300 hover:scale-105"
           >
             阅读文章
           </a>
@@ -34,7 +34,7 @@ export function Hero() {
       </div>
 
       <div className="absolute bottom-8 md:bottom-16 left-1/2 -translate-x-1/2 animate-bounce">
-        <svg className="w-5 h-5 md:w-6 md:h-6 text-slate-400 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 md:w-6 md:h-6 text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
         </svg>
       </div>

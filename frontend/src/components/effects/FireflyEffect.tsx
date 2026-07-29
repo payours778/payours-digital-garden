@@ -17,8 +17,8 @@ interface Firefly {
 export function FireflyEffect() {
   const [fireflies, setFireflies] = useState<Firefly[]>([]);
   const [isMounted, setIsMounted] = useState(false);
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
 
   useEffect(() => {
     setIsMounted(true);

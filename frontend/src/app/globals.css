@@ -6,6 +6,17 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-serif: "Noto Serif SC", "Source Han Serif SC", "Songti SC", serif;
+  --color-theme-surface: var(--theme-surface);
+  --color-theme-surface-hover: var(--theme-surface-hover);
+  --color-theme-surface-strong: var(--theme-surface-strong);
+  --color-theme-text-primary: var(--theme-text-primary);
+  --color-theme-text-secondary: var(--theme-text-secondary);
+  --color-theme-text-tertiary: var(--theme-text-tertiary);
+  --color-theme-text-accent: var(--theme-text-accent);
+  --color-theme-border: var(--theme-border);
+  --color-theme-border-subtle: var(--theme-border-subtle);
+  --color-theme-overlay: var(--theme-overlay);
+  --color-theme-accent: var(--theme-accent);
 }
 
 :root {
@@ -23,6 +34,18 @@
   --accent-foreground: #166534;
   --border: #e2e8f0;
   --radius: 1rem;
+  --theme-surface: rgba(255, 255, 255, 0.4);
+  --theme-surface-hover: rgba(241, 245, 249, 0.6);
+  --theme-surface-strong: rgba(255, 255, 255, 0.5);
+  --theme-text-primary: #1e293b;
+  --theme-text-secondary: #64748b;
+  --theme-text-tertiary: #94a3b8;
+  --theme-text-accent: #6366f1;
+  --theme-border: rgba(255, 255, 255, 0.2);
+  --theme-border-subtle: rgba(226, 232, 240, 0.5);
+  --theme-overlay: rgba(248, 250, 252, 0.3);
+  --theme-accent: #6366f1;
+  --theme-surface-track: rgba(255, 255, 255, 0.3);
 }
 
 .dark {
@@ -39,6 +62,18 @@
   --accent: #14532d;
   --accent-foreground: #dcfce7;
   --border: #1e293b;
+  --theme-surface: rgba(30, 41, 59, 0.4);
+  --theme-surface-hover: rgba(30, 41, 59, 0.6);
+  --theme-surface-strong: rgba(30, 41, 59, 0.5);
+  --theme-text-primary: #f1f5f9;
+  --theme-text-secondary: #94a3b8;
+  --theme-text-tertiary: #64748b;
+  --theme-text-accent: #818cf8;
+  --theme-border: rgba(255, 255, 255, 0.1);
+  --theme-border-subtle: rgba(30, 41, 59, 0.5);
+  --theme-overlay: rgba(2, 6, 23, 0.3);
+  --theme-accent: #818cf8;
+  --theme-surface-track: rgba(255, 255, 255, 0.1);
 }
 
 * {
@@ -55,7 +90,7 @@ body {
   background-position: center;
   background-repeat: no-repeat;
   background-attachment: fixed;
-  color: var(--foreground);
+  color: var(--theme-text-primary);
   font-family: var(--font-serif);
   min-height: 100vh;
   overflow-x: hidden;
@@ -66,13 +101,9 @@ body::before {
   content: '';
   position: fixed;
   inset: 0;
-  background-color: rgba(248, 250, 252, 0.3);
+  background-color: var(--theme-overlay);
   z-index: -1;
   transition: background-color 0.5s ease;
-}
-
-.dark body::before {
-  background-color: rgba(2, 6, 23, 0.3);
 }
 
 ::selection {
@@ -86,16 +117,68 @@ body::before {
 }
 
 ::-webkit-scrollbar-track {
-  background: var(--muted);
+  background: var(--theme-surface);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--muted-foreground);
+  background: var(--theme-text-tertiary);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--foreground);
+  background: var(--theme-text-primary);
+}
+
+/* ===== Theme-aware utility classes ===== */
+@utility surface-card {
+  background-color: var(--theme-surface);
+}
+@utility surface-card-hover {
+  background-color: var(--theme-surface-hover);
+}
+@utility surface-strong {
+  background-color: var(--theme-surface-strong);
+}
+@utility text-primary {
+  color: var(--theme-text-primary);
+}
+@utility text-secondary {
+  color: var(--theme-text-secondary);
+}
+@utility text-tertiary {
+  color: var(--theme-text-tertiary);
+}
+@utility text-accent {
+  color: var(--theme-text-accent);
+}
+@utility border-theme {
+  border-color: var(--theme-border);
+}
+@utility border-subtle {
+  border-color: var(--theme-border-subtle);
+}
+@utility surface-track {
+  background-color: var(--theme-surface-track);
+}
+
+/* 主体切入切出动画 */
+html,
+html *,
+html *::before,
+html *::after {
+  transition: background-color 0.3s ease,
+              border-color 0.3s ease,
+              color 0.3s ease;
+}
+
+/* 动画元素排除过渡 */
+html .animate-fade-in-up,
+html .animate-bounce,
+html .animate-spin-slow,
+html .animate-pulse,
+html .animate-cursor,
+html [style*="animation"] {
+  transition: none !important;
 }
 
 @keyframes sakuraFall {

@@ -43,6 +43,17 @@ export const viewport: Viewport = {
   ],
 };
 
+const themeScript = `
+  try {
+    var t = localStorage.getItem("theme");
+    var s = t === "dark" || t === "light"
+      ? t
+      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.classList.remove("light", "dark");
+    document.documentElement.classList.add(s);
+  } catch(e) {}
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -50,8 +61,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body
-        className={`${notoSerif.variable} ${sourceSerif.variable} h-full antialiased bg-slate-50 dark:bg-slate-950 font-serif`}
+        className={`${notoSerif.variable} ${sourceSerif.variable} h-full antialiased font-serif`}
       >
         <ThemeProvider>
           <MusicProvider>
