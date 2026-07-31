@@ -33,8 +33,16 @@ export function Footer() {
           </a>
         </div>
 
-        <div className="text-xs text-tertiary">
-          Built with Next.js & Tailwind CSS
+        <div className="flex items-center gap-4 text-xs text-tertiary">
+          <span>Built with Next.js & Tailwind CSS</span>
+          <a
+            href="https://beian.miit.gov.cn/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-accent transition-colors"
+          >
+            渝ICP备2026013368号
+          </a>
         </div>
       </div>
     </footer>

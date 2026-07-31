@@ -1,37 +1,10 @@
 import { Hero } from "@/components/sections/Hero";
-import { ArticleList } from "@/components/sections/ArticleList";
-import { ProfileCard } from "@/components/sections/ProfileCard";
-import { MusicPlayer } from "@/components/sections/MusicPlayer";
+import { LeftSidebar } from "@/components/sections/LeftSidebar";
+import { RightSidebar } from "@/components/sections/RightSidebar";
+import { FeaturedArticle } from "@/components/sections/FeaturedArticle";
+import { ArticleGrid } from "@/components/sections/ArticleGrid";
+import { Timeline } from "@/components/sections/Timeline";
 import { FooterInfo } from "@/components/sections/FooterInfo";
-import { ThemeCard } from "@/components/sections/ThemeCard";
-import { ArticleCard } from "@/components/sections/ArticleCard";
-
-function SearchBar() {
-  return (
-    <div className="max-w-2xl mx-auto mb-6 md:mb-8">
-      <div className="relative">
-        <svg
-          className="absolute left-4 md:left-5 top-1/2 -translate-y-1/2 w-4 md:w-5 h-4 md:h-5 text-tertiary"
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-          />
-        </svg>
-        <input
-          type="text"
-          placeholder="搜寻标题、描述或标签..."
-          className="w-full pl-10 md:pl-12 pr-4 md:pr-6 py-3 md:py-4 rounded-2xl surface-card backdrop-blur-xl border border-theme text-sm md:text-base text-primary placeholder-tertiary focus:outline-none focus:border-indigo-500 transition-all"
-        />
-      </div>
-    </div>
-  );
-}
 
 export default function Home() {
   return (
@@ -39,35 +12,24 @@ export default function Home() {
       <Hero />
 
       <section className="py-4 md:py-8 px-4">
-        <div className="max-w-6xl mx-auto">
-          {/* 搜索栏 */}
-          <SearchBar />
+        <div className="max-w-7xl mx-auto">
+          <div className="flex flex-col lg:flex-row gap-5">
+            {/* 左侧栏 */}
+            <LeftSidebar />
 
-          {/* 手机端：单列堆叠；桌面端：7/5 布局 */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-6 mb-6 md:mb-8 items-stretch">
-            <div className="md:col-span-7">
-              <ProfileCard />
-            </div>
-            <div className="md:col-span-5">
-              <MusicPlayer />
-            </div>
+            {/* 主内容区 */}
+            <main className="flex-1 min-w-0 space-y-5">
+              <FeaturedArticle />
+              <ArticleGrid />
+              <Timeline />
+            </main>
+
+            {/* 右侧栏 */}
+            <RightSidebar />
           </div>
 
-          {/* 文章列表 */}
-          <ArticleList />
-
-          {/* 底部卡片区域 */}
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-3 md:gap-6 mt-6 md:mt-8">
-            <div className="md:col-span-8">
-              <ArticleCard />
-            </div>
-            <div className="md:col-span-4">
-              <ThemeCard />
-            </div>
-          </div>
-
-          {/* 底部信息栏 */}
-          <div className="mt-6 md:mt-8">
+          {/* 底部长条：时钟 + 技术栈 + 备案号 */}
+          <div className="mt-5">
             <FooterInfo />
           </div>
         </div>
