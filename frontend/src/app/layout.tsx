@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { SakuraEffect } from "@/components/effects/SakuraEffect";
 import { FireflyEffect } from "@/components/effects/FireflyEffect";
 import { MusicProvider } from "@/contexts/MusicContext";
+import { FloatingMusic } from "@/components/sections/FloatingMusic";
 
 const notoSerif = Noto_Serif_SC({
   subsets: ["latin"],
@@ -76,6 +77,7 @@ export default function RootLayout({
               {children}
             </main>
             <Footer />
+            <FloatingMusic />
           </MusicProvider>
         </ThemeProvider>
       </body>

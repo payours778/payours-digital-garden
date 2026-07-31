@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useMusic } from "@/contexts/MusicContext";
 import { CalendarWidget } from "@/components/widgets/CalendarWidget";
 
 /* ===== 紧凑时钟 ===== */
@@ -75,56 +74,6 @@ function WeatherCard() {
   );
 }
 
-/* ===== 紧凑音乐播放器 ===== */
-function CompactMusicPlayer() {
-  const { currentTrack, isPlaying, togglePlay, handlePrev, handleNext, currentTime, duration, formatTime } = useMusic();
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
-  return (
-    <div className="rounded-2xl surface-card backdrop-blur-xl border border-theme shadow-sm p-5">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-400 to-purple-400 flex items-center justify-center text-white text-lg flex-shrink-0 animate-float shadow-lg shadow-indigo-500/20">
-          🎵
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-primary truncate">{currentTrack.title}</p>
-          <p className="text-[11px] text-tertiary truncate">{currentTrack.artist}</p>
-        </div>
-      </div>
-      <div className="w-full h-1.5 surface-track rounded-full overflow-hidden">
-        <div
-          className="h-full bg-gradient-to-r from-indigo-500 to-purple-500 rounded-full transition-all"
-          style={{ width: `${progress}%` }}
-        />
-      </div>
-      <div className="flex items-center justify-between text-[10px] text-tertiary mt-1.5">
-        <span>{formatTime(currentTime)}</span>
-        <span>{currentTrack.duration}</span>
-      </div>
-      <div className="flex justify-center gap-4 mt-3">
-        <button
-          onClick={handlePrev}
-          className="text-tertiary hover:text-accent transition-colors text-sm"
-        >
-          ⏮
-        </button>
-        <button
-          onClick={togglePlay}
-          className="w-9 h-9 rounded-full bg-indigo-500 text-white flex items-center justify-center hover:bg-indigo-600 transition-all text-sm shadow-lg shadow-indigo-500/30"
-        >
-          {isPlaying ? "⏸" : "▶"}
-        </button>
-        <button
-          onClick={handleNext}
-          className="text-tertiary hover:text-accent transition-colors text-sm"
-        >
-          ⏭
-        </button>
-      </div>
-    </div>
-  );
-}
-
 /* ===== 最新文章 ===== */
 const latestPosts = [
   { title: "React 19 新特性全面解读", date: "07-28", views: "3.2k" },
@@ -179,7 +128,6 @@ export function RightSidebar() {
       <ClockCard />
       <WeatherCard />
       <CalendarWidget />
-      <CompactMusicPlayer />
       <LatestArticles />
       <DailyQuote />
     </aside>

@@ -1,12 +1,6 @@
 export function Hero() {
   return (
-    <section className="relative min-h-[50vh] md:min-h-[70vh] flex items-center justify-center pt-16 px-4 overflow-hidden">
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/3 w-[500px] h-[500px] bg-pink-200/5 rounded-full blur-[150px]" />
-        <div className="absolute bottom-1/3 right-1/4 w-[400px] h-[400px] bg-indigo-200/5 rounded-full blur-[120px]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-purple-100/5 rounded-full blur-[180px]" />
-      </div>
-
+    <section className="relative min-h-[35vh] md:min-h-[42vh] flex items-center justify-center pt-28 md:pt-32 pb-6 px-4 overflow-hidden">
       <div className="relative z-10 text-center max-w-3xl mx-auto space-y-4 md:space-y-6">
         <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold tracking-tight text-primary animate-fade-in-up">
           Payours<span className="text-indigo-500 mx-2">の</span>空中花园
@@ -33,7 +27,7 @@ export function Hero() {
         </div>
       </div>
 
-      <div className="absolute bottom-8 md:bottom-16 left-1/2 -translate-x-1/2 animate-bounce">
+      <div className="absolute bottom-3 md:bottom-5 left-1/2 -translate-x-1/2 animate-bounce">
         <svg className="w-5 h-5 md:w-6 md:h-6 text-tertiary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
         </svg>
