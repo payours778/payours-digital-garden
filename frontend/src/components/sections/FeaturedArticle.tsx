@@ -129,7 +129,7 @@ export function FeaturedArticle() {
             <h2 className="text-xl md:text-2xl font-black text-primary leading-snug transition-all duration-300">
               {slide.title}
             </h2>
-            <p className="text-sm text-tertiary mt-3 leading-relaxed line-clamp-2 max-w-2xl">
+            <p className="text-sm text-tertiary mt-3 leading-relaxed line-clamp-2 max-w-2xl min-h-[45px]">
               {slide.excerpt}
             </p>
             <div className="flex flex-wrap items-center gap-4 mt-4 text-xs text-tertiary">

@@ -34,15 +34,15 @@
   --accent-foreground: #166534;
   --border: #e2e8f0;
   --radius: 1rem;
-  --theme-surface: rgba(255, 255, 255, 0.55);
-  --theme-surface-hover: rgba(241, 245, 249, 0.65);
-  --theme-surface-strong: rgba(255, 255, 255, 0.65);
+  --theme-surface: rgba(255, 255, 255, 0.38);
+  --theme-surface-hover: rgba(241, 245, 249, 0.5);
+  --theme-surface-strong: rgba(255, 255, 255, 0.5);
   --theme-text-primary: #0f172a;
   --theme-text-secondary: #475569;
   --theme-text-tertiary: #64748b;
   --theme-text-accent: #6366f1;
-  --theme-border: rgba(255, 255, 255, 0.2);
-  --theme-border-subtle: rgba(226, 232, 240, 0.5);
+  --theme-border: rgba(255, 255, 255, 0.45);
+  --theme-border-subtle: rgba(226, 232, 240, 0.4);
   --theme-overlay: rgba(248, 250, 252, 0.3);
   --theme-accent: #6366f1;
   --theme-surface-track: rgba(255, 255, 255, 0.3);
@@ -132,12 +132,18 @@ body::before {
 /* ===== Theme-aware utility classes ===== */
 @utility surface-card {
   background-color: var(--theme-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 @utility surface-card-hover {
   background-color: var(--theme-surface-hover);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
 }
 @utility surface-strong {
   background-color: var(--theme-surface-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
 }
 @utility text-primary {
   color: var(--theme-text-primary);
