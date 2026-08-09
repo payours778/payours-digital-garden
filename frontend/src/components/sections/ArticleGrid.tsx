@@ -1,13 +1,6 @@
+import { EssayCarousel } from "./EssayCarousel";
+
 const articles = [
-  {
-    icon: "📝",
-    title: "TypeScript 5.6 类型体操实战指南",
-    excerpt: "深入探讨 TypeScript 5.6 中新增的类型工具和模式，通过实际案例展示如何在项目中运用高级类型...",
-    date: "07-25",
-    comments: 8,
-    views: "1.2k",
-    gradient: "from-indigo-200 to-purple-200",
-  },
   {
     icon: "🐳",
     title: "Docker Compose 编排微服务最佳实践",
@@ -40,6 +33,10 @@ const articles = [
 export function ArticleGrid() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in-up animation-delay-200">
+      {/* 左上角：随笔轮播卡片 */}
+      <EssayCarousel />
+
+      {/* 其余三张文章卡片 */}
       {articles.map((a, i) => (
         <article
           key={i}
