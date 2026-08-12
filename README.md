@@ -55,7 +55,7 @@
 <!-- ===== 线上入口 ===== -->
 
 <p align="center">
-  <a href="https://payours.me">
+  <a href="www.payours.me">
     <img src="https://img.shields.io/badge/🌐_立即访问-payours.me-9333ea?style=for-the-badge&logo=firefoxbrowser&logoColor=white" alt="线上地址"/>
   </a>
 </p>
