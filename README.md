@@ -4,7 +4,7 @@
 
 <br/>
 
-# 🌱 数字花园 · Digital Garden
+# 🌱 payours的空中花园 · Digital Garden
 
 > *「在时光里种一点东西，总有一天它会开花。」*
 
@@ -48,6 +48,16 @@
   <img src="https://img.shields.io/badge/🎨_主题-亮色%20%7C%20暗色-9333ea?style=flat-square" alt="主题"/>
   <img src="https://img.shields.io/badge/📱_响应式-✅-06b6d4?style=flat-square" alt="响应式"/>
   <img src="https://img.shields.io/badge/🔒_鉴权-JWT%20%7C%20bcrypt-f59e0b?style=flat-square" alt="鉴权"/>
+</p>
+
+<br/>
+
+<!-- ===== 线上入口 ===== -->
+
+<p align="center">
+  <a href="https://payours.me">
+    <img src="https://img.shields.io/badge/🌐_立即访问-payours.me-9333ea?style=for-the-badge&logo=firefoxbrowser&logoColor=white" alt="线上地址"/>
+  </a>
 </p>
 
 <br/>
@@ -410,12 +420,12 @@ ssh root@120.77.201.34 'bash /var/www/blog/deploy-4-server.sh'
 ## 🌐 相关链接
 
 <p align="center">
-  <a href="https://blog.payours.me">
-    <img src="https://img.shields.io/badge/🌐_线上访问-blog.payours.me-9333ea?style=for-the-badge" alt="线上地址"/>
+  <a href="https://payours.me">
+    <img src="https://img.shields.io/badge/🌐_线上访问-payours.me-9333ea?style=for-the-badge" alt="线上地址"/>
   </a>
   &nbsp;&nbsp;
   <a href="https://github.com/payours778/payours-digital-garden">
-    <img src="https://img.shields.io/badge/�_GitHub-仓库-181717?style=for-the-badge&logo=github" alt="GitHub"/>
+    <img src="https://img.shields.io/badge/🐙_GitHub-仓库-181717?style=for-the-badge&logo=github" alt="GitHub"/>
   </a>
 </p>
 
