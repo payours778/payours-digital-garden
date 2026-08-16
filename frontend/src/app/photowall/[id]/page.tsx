@@ -8,7 +8,7 @@ interface Album {
   id: number;
   name: string;
   description: string;
-  cover_url: string;
+  cover: string;
   created_at: string;
   photos?: Photo[];
 }
@@ -17,7 +17,7 @@ interface Photo {
   id: number;
   album_id: number;
   url: string;
-  description: string;
+  caption: string;
   created_at: string;
 }
 
@@ -123,12 +123,12 @@ export default function AlbumDetailPage() {
                 >
                   <img
                     src={photo.url}
-                    alt={photo.description}
+                    alt={photo.caption}
                     className="w-full object-cover group-hover:scale-105 transition-transform duration-300"
                   />
-                  {photo.description && (
+                  {photo.caption && (
                     <div className="p-3">
-                      <p className="text-sm text-slate-600 dark:text-slate-300">{photo.description}</p>
+                      <p className="text-sm text-slate-600 dark:text-slate-300">{photo.caption}</p>
                     </div>
                   )}
                 </div>
@@ -146,11 +146,11 @@ export default function AlbumDetailPage() {
           <div className="relative max-w-4xl max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
             <img
               src={lightboxPhoto.url}
-              alt={lightboxPhoto.description}
+              alt={lightboxPhoto.caption}
               className="max-w-full max-h-[85vh] object-contain rounded-xl"
             />
-            {lightboxPhoto.description && (
-              <p className="text-center text-white/80 text-sm mt-3">{lightboxPhoto.description}</p>
+            {lightboxPhoto.caption && (
+              <p className="text-center text-white/80 text-sm mt-3">{lightboxPhoto.caption}</p>
             )}
             <button
               onClick={() => setLightboxPhoto(null)}

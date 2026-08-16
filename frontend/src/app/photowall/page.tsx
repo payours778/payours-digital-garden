@@ -7,7 +7,7 @@ interface Photo {
   id: number;
   album_id: number;
   url: string;
-  description: string;
+  caption: string;
   created_at: string;
 }
 
@@ -15,7 +15,7 @@ interface Album {
   id: number;
   name: string;
   description: string;
-  cover_url: string;
+  cover: string;
   photo_count: number;
   created_at: string;
   photos?: Photo[];

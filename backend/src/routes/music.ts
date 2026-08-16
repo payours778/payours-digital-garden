@@ -6,13 +6,14 @@ import {
   updateMusic,
   deleteMusic,
 } from '../controllers/musicController';
+import { requireAdmin } from '../auth';
 
 const router = Router();
 
 router.get('/', getMusicList);
 router.get('/:id', getMusicById);
-router.post('/', createMusic);
-router.put('/:id', updateMusic);
-router.delete('/:id', deleteMusic);
+router.post('/', requireAdmin, createMusic);
+router.put('/:id', requireAdmin, updateMusic);
+router.delete('/:id', requireAdmin, deleteMusic);
 
 export default router;

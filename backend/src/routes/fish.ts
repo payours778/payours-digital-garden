@@ -10,17 +10,18 @@ import {
   leaveRoom,
   getParticipantInfo,
 } from '../controllers/fishController';
+import { requireAuth } from '../auth';
 
 const router = Router();
 
-router.post('/room', createRoom);
-router.post('/room/:code/join', joinRoom);
-router.get('/room/:code', getRoomByCode);
-router.get('/room/:code/full', getRoomByCodeFull);
-router.post('/room/:roomId/messages', sendMessage);
-router.get('/room/:roomId/messages', getMessages);
-router.post('/room/:roomId/leave', leaveRoom);
-router.get('/rooms', getRoomsList);
-router.get('/participant', getParticipantInfo);
+router.post('/room', requireAuth, createRoom);
+router.post('/room/:code/join', requireAuth, joinRoom);
+router.get('/room/:code', requireAuth, getRoomByCode);
+router.get('/room/:code/full', requireAuth, getRoomByCodeFull);
+router.post('/room/:roomId/messages', requireAuth, sendMessage);
+router.get('/room/:roomId/messages', requireAuth, getMessages);
+router.post('/room/:roomId/leave', requireAuth, leaveRoom);
+router.get('/rooms', requireAuth, getRoomsList);
+router.get('/participant', requireAuth, getParticipantInfo);
 
 export default router;

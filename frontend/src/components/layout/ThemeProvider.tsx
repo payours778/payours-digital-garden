@@ -1,9 +1,10 @@
-﻿"use client";
+"use client";
 
 import {
   createContext,
   useContext,
   useEffect,
+  useLayoutEffect,
   useState,
   useCallback,
   type ReactNode,
@@ -38,7 +39,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [resolvedTheme, setResolvedTheme] = useState<"light" | "dark">("light");
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
+  // useLayoutEffect: runs synchronously after DOM mutation but before paint,
+  // preventing flash of wrong theme during hydration
+  useLayoutEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY) as Theme | null;
     const t = stored ?? "system";
     setThemeState(t);

@@ -6,7 +6,7 @@ interface Album {
   id: number;
   name: string;
   description: string;
-  cover_url: string;
+  cover: string;
   photo_count: number;
   created_at: string;
   photos?: Photo[];
@@ -16,7 +16,7 @@ interface Photo {
   id: number;
   album_id: number;
   url: string;
-  description: string;
+  caption: string;
   created_at: string;
 }
 
@@ -31,12 +31,12 @@ export default function AdminPhotos() {
   const [albumForm, setAlbumForm] = useState({
     name: "",
     description: "",
-    cover_url: "",
+    cover: "",
   });
 
   const [photoForm, setPhotoForm] = useState({
     url: "",
-    description: "",
+    caption: "",
   });
 
   const fetchAlbums = async () => {
@@ -86,7 +86,7 @@ export default function AdminPhotos() {
       if (res.ok) {
         setShowAlbumForm(false);
         setEditingAlbum(null);
-        setAlbumForm({ name: "", description: "", cover_url: "" });
+        setAlbumForm({ name: "", description: "", cover: "" });
         fetchAlbums();
       } else {
         const data = await res.json();
@@ -102,7 +102,7 @@ export default function AdminPhotos() {
     setAlbumForm({
       name: album.name,
       description: album.description || "",
-      cover_url: album.cover_url || "",
+      cover: album.cover || "",
     });
     setShowAlbumForm(true);
   };
@@ -134,13 +134,13 @@ export default function AdminPhotos() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          photos: [{ url: photoForm.url, description: photoForm.description }],
+          photos: [{ url: photoForm.url, caption: photoForm.caption }],
         }),
       });
 
       if (res.ok) {
         setShowPhotoForm(false);
-        setPhotoForm({ url: "", description: "" });
+        setPhotoForm({ url: "", caption: "" });
         fetchAlbumDetail(currentAlbum.id);
         fetchAlbums();
       }
@@ -215,7 +215,7 @@ export default function AdminPhotos() {
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
             {currentAlbum.photos.map((photo) => (
               <div key={photo.id} className="group relative rounded-xl overflow-hidden bg-slate-100 dark:bg-slate-700 aspect-square">
-                <img src={photo.url} alt={photo.description} className="w-full h-full object-cover" />
+                <img src={photo.url} alt={photo.caption} className="w-full h-full object-cover" />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
                   <button
                     onClick={() => handleDeletePhoto(photo.id)}
@@ -227,9 +227,9 @@ export default function AdminPhotos() {
                     </svg>
                   </button>
                 </div>
-                {photo.description && (
+                {photo.caption && (
                   <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-xs p-2 truncate">
-                    {photo.description}
+                    {photo.caption}
                   </div>
                 )}
               </div>
@@ -272,8 +272,8 @@ export default function AdminPhotos() {
                   </label>
                   <input
                     type="text"
-                    value={photoForm.description}
-                    onChange={(e) => setPhotoForm({ ...photoForm, description: e.target.value })}
+                    value={photoForm.caption}
+                    onChange={(e) => setPhotoForm({ ...photoForm, caption: e.target.value })}
                     className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm"
                     placeholder="照片描述（可选）"
                   />
@@ -314,7 +314,7 @@ export default function AdminPhotos() {
         <button
           onClick={() => {
             setEditingAlbum(null);
-            setAlbumForm({ name: "", description: "", cover_url: "" });
+            setAlbumForm({ name: "", description: "", cover: "" });
             setShowAlbumForm(true);
           }}
           className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 transition-colors text-sm flex items-center gap-2"
@@ -342,8 +342,8 @@ export default function AdminPhotos() {
                 className="aspect-[4/3] bg-slate-100 dark:bg-slate-700 cursor-pointer"
                 onClick={() => fetchAlbumDetail(album.id)}
               >
-                {album.cover_url ? (
-                  <img src={album.cover_url} alt={album.name} className="w-full h-full object-cover" />
+                {album.cover ? (
+                  <img src={album.cover} alt={album.name} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-slate-400">
                     <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -434,14 +434,14 @@ export default function AdminPhotos() {
                 </label>
                 <input
                   type="text"
-                  value={albumForm.cover_url}
-                  onChange={(e) => setAlbumForm({ ...albumForm, cover_url: e.target.value })}
+                  value={albumForm.cover}
+                  onChange={(e) => setAlbumForm({ ...albumForm, cover: e.target.value })}
                   className="w-full px-3 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white text-sm"
                   placeholder="https://..."
                 />
               </div>
-              {albumForm.cover_url && (
-                <img src={albumForm.cover_url} alt="封面预览" className="w-full h-32 object-cover rounded-lg" />
+              {albumForm.cover && (
+                <img src={albumForm.cover} alt="封面预览" className="w-full h-32 object-cover rounded-lg" />
               )}
             </div>
             <div className="flex justify-end gap-2 mt-6">

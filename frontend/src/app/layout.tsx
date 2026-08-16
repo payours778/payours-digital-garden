@@ -7,6 +7,7 @@ import { Footer } from "@/components/layout/Footer";
 import { SakuraEffect } from "@/components/effects/SakuraEffect";
 import { FireflyEffect } from "@/components/effects/FireflyEffect";
 import { MusicProvider } from "@/contexts/MusicContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { FloatingMusic } from "@/components/sections/FloatingMusic";
 
 const notoSerif = Noto_Serif_SC({
@@ -44,17 +45,6 @@ export const viewport: Viewport = {
   ],
 };
 
-const themeScript = `
-  try {
-    var t = localStorage.getItem("theme");
-    var s = t === "dark" || t === "light"
-      ? t
-      : (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    document.documentElement.classList.remove("light", "dark");
-    document.documentElement.classList.add(s);
-  } catch(e) {}
-`;
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -62,23 +52,22 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN" suppressHydrationWarning>
-      <head>
-        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
-      </head>
       <body
         className={`${notoSerif.variable} ${sourceSerif.variable} h-full antialiased font-serif`}
       >
         <ThemeProvider>
-          <MusicProvider>
-            <SakuraEffect />
-            <FireflyEffect />
-            <Header />
-            <main className="relative z-10 flex-1 flex flex-col">
-              {children}
-            </main>
-            <Footer />
-            <FloatingMusic />
-          </MusicProvider>
+          <AuthProvider>
+            <MusicProvider>
+              <SakuraEffect />
+              <FireflyEffect />
+              <Header />
+              <main className="relative z-10 flex-1 flex flex-col">
+                {children}
+              </main>
+              <Footer />
+              <FloatingMusic />
+            </MusicProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

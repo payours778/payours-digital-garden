@@ -76,7 +76,7 @@ export interface Album {
   id: number;
   name: string;
   description: string;
-  cover_url: string;
+  cover: string;
   photo_count?: number;
   created_at: string;
 }
@@ -85,29 +85,29 @@ export interface Photo {
   id: number;
   album_id: number;
   url: string;
-  description: string;
+  caption: string;
   created_at: string;
 }
 
 export interface CreateAlbumRequest {
   name: string;
   description?: string;
-  cover_url?: string;
+  cover?: string;
 }
 
 export interface UpdateAlbumRequest {
   name?: string;
   description?: string;
-  cover_url?: string;
+  cover?: string;
 }
 
 export interface CreatePhotoRequest {
   url: string;
-  description?: string;
+  caption?: string;
 }
 
 export interface UpdatePhotoRequest {
-  description?: string;
+  caption?: string;
 }
 
 export interface PhotoSearchRequest {

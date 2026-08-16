@@ -7,7 +7,7 @@ const parseAlbumRow = (row: any[]) => ({
   id: row[0],
   name: row[1],
   description: row[2],
-  cover_url: row[3],
+  cover: row[3],
   created_at: row[4],
   photo_count: 0,
   photos: [] as any[],
@@ -17,7 +17,7 @@ const parsePhotoRow = (row: any[]) => ({
   id: row[0],
   album_id: row[1],
   url: row[2],
-  description: row[3],
+  caption: row[3],
   created_at: row[4],
 });
 
@@ -64,7 +64,7 @@ export const getAlbumById = async (req: Request, res: Response) => {
 
 export const createAlbum = async (req: Request, res: Response) => {
   try {
-    const { name, description, cover_url } = req.body as CreateAlbumRequest;
+    const { name, description, cover } = req.body as CreateAlbumRequest;
 
     if (!name) {
       return res.status(400).json({ error: '相册名称不能为空' });
@@ -74,8 +74,8 @@ export const createAlbum = async (req: Request, res: Response) => {
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
     db.run(
-      'INSERT INTO albums (name, description, cover_url, created_at) VALUES (?, ?, ?, ?)',
-      [name, description || '', cover_url || '', now]
+      'INSERT INTO albums (name, description, cover, created_at) VALUES (?, ?, ?, ?)',
+      [name, description || '', cover || '', now]
     );
 
     const maxIdResult = db.exec('SELECT MAX(id) FROM albums');
@@ -102,7 +102,7 @@ export const createAlbum = async (req: Request, res: Response) => {
 export const updateAlbum = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { name, description, cover_url } = req.body as UpdateAlbumRequest;
+    const { name, description, cover } = req.body as UpdateAlbumRequest;
 
     const db = await getDb();
     const existingResult = db.exec(`SELECT * FROM albums WHERE id = ${id}`);
@@ -116,7 +116,7 @@ export const updateAlbum = async (req: Request, res: Response) => {
 
     if (name !== undefined) { fields.push('name = ?'); values.push(name); }
     if (description !== undefined) { fields.push('description = ?'); values.push(description); }
-    if (cover_url !== undefined) { fields.push('cover_url = ?'); values.push(cover_url); }
+    if (cover !== undefined) { fields.push('cover = ?'); values.push(cover); }
 
     if (fields.length > 0) {
       db.run(`UPDATE albums SET ${fields.join(', ')} WHERE id = ${id}`, values);
@@ -154,7 +154,7 @@ export const deleteAlbum = async (req: Request, res: Response) => {
 export const uploadPhoto = async (req: Request, res: Response) => {
   try {
     const { albumId } = req.params;
-    const { description } = req.body as UpdatePhotoRequest;
+    const { caption } = req.body as UpdatePhotoRequest;
 
     if (!req.file) {
       return res.status(400).json({ error: '请选择要上传的照片' });
@@ -173,8 +173,8 @@ export const uploadPhoto = async (req: Request, res: Response) => {
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
     db.run(
-      'INSERT INTO photos (album_id, url, description, created_at) VALUES (?, ?, ?, ?)',
-      [albumId, url, description || '', now]
+      'INSERT INTO photos (album_id, url, caption, created_at) VALUES (?, ?, ?, ?)',
+      [albumId, url, caption || '', now]
     );
 
     const maxIdResult = db.exec('SELECT MAX(id) FROM photos');
@@ -195,7 +195,7 @@ export const uploadPhoto = async (req: Request, res: Response) => {
 export const addPhotos = async (req: Request, res: Response) => {
   try {
     const { albumId } = req.params;
-    const { photos } = req.body as { photos: Array<{ url: string; description?: string }> };
+    const { photos } = req.body as { photos: Array<{ url: string; caption?: string }> };
 
     if (!photos || !Array.isArray(photos) || photos.length === 0) {
       return res.status(400).json({ error: '照片数据不能为空' });
@@ -212,8 +212,8 @@ export const addPhotos = async (req: Request, res: Response) => {
 
     for (const photo of photos) {
       db.run(
-        'INSERT INTO photos (album_id, url, description, created_at) VALUES (?, ?, ?, ?)',
-        [albumId, photo.url, photo.description || '', now]
+        'INSERT INTO photos (album_id, url, caption, created_at) VALUES (?, ?, ?, ?)',
+        [albumId, photo.url, photo.caption || '', now]
       );
     }
 
@@ -231,7 +231,7 @@ export const addPhotos = async (req: Request, res: Response) => {
 export const updatePhoto = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const { description } = req.body as UpdatePhotoRequest;
+    const { caption } = req.body as UpdatePhotoRequest;
 
     const db = await getDb();
     const existingResult = db.exec(`SELECT * FROM photos WHERE id = ${id}`);
@@ -240,8 +240,8 @@ export const updatePhoto = async (req: Request, res: Response) => {
       return res.status(404).json({ error: '照片不存在' });
     }
 
-    if (description !== undefined) {
-      db.run(`UPDATE photos SET description = ? WHERE id = ${id}`, [description]);
+    if (caption !== undefined) {
+      db.run(`UPDATE photos SET caption = ? WHERE id = ${id}`, [caption]);
       await saveDb();
     }
 
@@ -292,7 +292,7 @@ export const searchPhotos = async (req: Request, res: Response) => {
     const params: any[] = [];
 
     if (keyword) {
-      query += ' AND (description LIKE ? OR url LIKE ?)';
+      query += ' AND (caption LIKE ? OR url LIKE ?)';
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
 

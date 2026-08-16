@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ThemeToggle } from "./ThemeToggle";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserCircle2, LogIn, Crown, Settings, LogOut } from "lucide-react";
 
 const navItems = [
   { href: "/", label: "首页" },
@@ -20,9 +22,13 @@ const navItems = [
 
 export function Header() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, logout } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -40,15 +46,18 @@ export function Header() {
 
   // 点击外部关闭
   useEffect(() => {
-    if (!mobileMenuOpen) return;
+    if (!mobileMenuOpen && !userMenuOpen) return;
     const handleClickOutside = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+      if (mobileMenuOpen && menuRef.current && !menuRef.current.contains(e.target as Node)) {
         setMobileMenuOpen(false);
+      }
+      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) {
+        setUserMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [mobileMenuOpen]);
+  }, [mobileMenuOpen, userMenuOpen]);
 
   return (
     <header
@@ -114,6 +123,80 @@ export function Header() {
 
           <div className="flex items-center gap-2">
             <ThemeToggle />
+
+            {/* 用户区 */}
+            <div className="relative" ref={userMenuRef}>
+              {user ? (
+                <>
+                  <button
+                    onClick={() => setUserMenuOpen(!userMenuOpen)}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl
+                               surface-card hover:bg-white/30 dark:hover:bg-slate-800/30
+                               border border-theme transition-colors"
+                    aria-label="用户菜单"
+                  >
+                    <UserCircle2 className="w-4.5 h-4.5 text-secondary" />
+                    <span className="hidden sm:inline text-sm text-primary max-w-[100px] truncate">
+                      {user.username}
+                    </span>
+                    {user.role === 'admin' && (
+                      <Crown className="hidden sm:inline w-3.5 h-3.5 text-amber-500" />
+                    )}
+                  </button>
+
+                  {userMenuOpen && (
+                    <div className="absolute right-0 mt-2 w-44 rounded-2xl
+                                    backdrop-blur-xl bg-white/80 dark:bg-slate-900/85
+                                    border border-theme shadow-xl z-[60] overflow-hidden">
+                      <div className="px-4 py-3 border-b border-theme">
+                        <p className="text-sm font-semibold text-primary truncate">{user.username}</p>
+                        <p className="text-xs text-tertiary truncate">
+                          {user.phone || '未绑定手机'}
+                        </p>
+                      </div>
+                      <div className="py-1.5">
+                        <Link
+                          href="/dashboard"
+                          className="flex items-center gap-2 px-4 py-2 text-sm text-secondary hover:text-accent hover:surface-card-hover transition-colors"
+                          onClick={() => setUserMenuOpen(false)}
+                        >
+                          <Settings className="w-4 h-4" /> 个人空间
+                        </Link>
+                        {user.role === 'admin' && (
+                          <Link
+                            href="/admin"
+                            className="flex items-center gap-2 px-4 py-2 text-sm text-secondary hover:text-accent hover:surface-card-hover transition-colors"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Crown className="w-4 h-4" /> 管理后台
+                          </Link>
+                        )}
+                        <button
+                          onClick={() => {
+                            setUserMenuOpen(false);
+                            logout();
+                            router.push('/');
+                          }}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-500/10 transition-colors"
+                        >
+                          <LogOut className="w-4 h-4" /> 退出登录
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm
+                             bg-indigo-500/80 hover:bg-indigo-500 text-white
+                             shadow-md shadow-indigo-500/20 transition-colors"
+                >
+                  <LogIn className="w-4 h-4" />
+                  <span className="hidden sm:inline">登录</span>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       </div>

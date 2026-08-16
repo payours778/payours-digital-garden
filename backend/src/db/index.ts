@@ -58,7 +58,7 @@ export async function getDb(): Promise<Database> {
     db = new SQL.Database();
   }
 
-  // Use db.exec() for multi-statement SQL
+  // ---- 所有表 CREATE IF NOT EXISTS（列名对齐真实线上库 + controllers 按位置解析顺序）----
   db.exec(
     "CREATE TABLE IF NOT EXISTS posts (" +
     "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -67,10 +67,28 @@ export async function getDb(): Promise<Database> {
     "  excerpt TEXT," +
     "  slug TEXT UNIQUE NOT NULL," +
     "  cover TEXT," +
-    "  tags TEXT DEFAULT '[]'," +
     "  views INTEGER DEFAULT 0," +
     "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP," +
+    "  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP," +
+    "  tags TEXT DEFAULT '[]'" +
+    ");" +
+    "CREATE TABLE IF NOT EXISTS users (" +
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+    "  username TEXT UNIQUE NOT NULL," +
+    "  password_hash TEXT NOT NULL," +
+    "  phone TEXT UNIQUE," +
+    "  role TEXT DEFAULT 'user'," +
+    "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP," +
     "  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
+    ");" +
+    "CREATE TABLE IF NOT EXISTS essays (" +
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+    "  title TEXT NOT NULL," +
+    "  content TEXT NOT NULL," +
+    "  excerpt TEXT," +
+    "  cover TEXT," +
+    "  date TEXT," +
+    "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
     ");" +
     "CREATE TABLE IF NOT EXISTS moments (" +
     "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
@@ -82,24 +100,23 @@ export async function getDb(): Promise<Database> {
     "CREATE TABLE IF NOT EXISTS albums (" +
     "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
     "  name TEXT NOT NULL," +
-    "  description TEXT," +
-    "  cover_url TEXT," +
+    "  description TEXT DEFAULT ''," +
+    "  cover TEXT DEFAULT ''," +
     "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
     ");" +
     "CREATE TABLE IF NOT EXISTS photos (" +
     "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
-    "  album_id INTEGER," +
+    "  album_id INTEGER NOT NULL," +
     "  url TEXT NOT NULL," +
-    "  description TEXT," +
-    "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP," +
-    "  FOREIGN KEY (album_id) REFERENCES albums(id) ON DELETE CASCADE" +
+    "  caption TEXT DEFAULT ''," +
+    "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
     ");" +
     "CREATE TABLE IF NOT EXISTS projects (" +
     "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
     "  name TEXT NOT NULL," +
-    "  description TEXT," +
+    "  description TEXT DEFAULT ''," +
     "  tech TEXT DEFAULT '[]'," +
-    "  link TEXT," +
+    "  link TEXT DEFAULT ''," +
     "  stars INTEGER DEFAULT 0," +
     "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
     ");" +
@@ -124,39 +141,62 @@ export async function getDb(): Promise<Database> {
     "  token TEXT," +
     "  nickname TEXT NOT NULL," +
     "  joined_at DATETIME DEFAULT CURRENT_TIMESTAMP," +
-    "  last_active DATETIME DEFAULT CURRENT_TIMESTAMP," +
-    "  FOREIGN KEY (room_id) REFERENCES fish_rooms(id) ON DELETE CASCADE" +
+    "  last_active DATETIME DEFAULT CURRENT_TIMESTAMP" +
     ");" +
     "CREATE TABLE IF NOT EXISTS fish_messages (" +
     "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
     "  room_id INTEGER," +
     "  sender_nickname TEXT," +
     "  content TEXT NOT NULL," +
-    "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP," +
-    "  FOREIGN KEY (room_id) REFERENCES fish_rooms(id) ON DELETE CASCADE" +
+    "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
     ");"
   );
 
-  // Migrations for existing databases that may have missing columns
-  const fishPartCols = db.exec("PRAGMA table_info(fish_room_participants)");
-  const hasToken = fishPartCols[0]?.values?.some((row: any) => row[1] === "token");
-  if (!hasToken) {
-    db.run("ALTER TABLE fish_room_participants ADD COLUMN token TEXT");
-    db.run("UPDATE fish_room_participants SET token = 'legacy_' || id WHERE token IS NULL");
-  }
+  // ---- 列缺失自动补齐（旧库升级，SQLite 不能 RENAME/DROP 列，旧列保留忽略）----
+  const ensureCol = (table: string, col: string, def: string) => {
+    const rows = db!.exec(`PRAGMA table_info(${table})`)[0]?.values || [];
+    if (!rows.some((r: any) => r[1] === col)) {
+      try { db!.run(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`); } catch {}
+    }
+  };
+  ensureCol("posts", "tags", "TEXT DEFAULT '[]'");
+  ensureCol("essays", "date", "TEXT");
+  ensureCol("essays", "excerpt", "TEXT");
+  ensureCol("essays", "cover", "TEXT");
+  ensureCol("essays", "created_at", "DATETIME DEFAULT CURRENT_TIMESTAMP");
+  ensureCol("users", "password_hash", "TEXT");
+  ensureCol("users", "phone", "TEXT");
+  ensureCol("users", "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP");
+  ensureCol("fish_room_participants", "token", "TEXT");
+  ensureCol("fish_room_participants", "last_active", "DATETIME DEFAULT CURRENT_TIMESTAMP");
+  try { db!.run("UPDATE fish_room_participants SET token = 'legacy_' || id WHERE token IS NULL"); } catch {}
+  try { db!.run("ALTER TABLE fish_rooms DROP COLUMN participant1_nickname"); } catch {}
+  try { db!.run("ALTER TABLE fish_rooms DROP COLUMN participant2_nickname"); } catch {}
 
-  // Remove legacy columns if they exist
-  try { db.run("ALTER TABLE fish_rooms DROP COLUMN participant1_nickname"); } catch {}
-  try { db.run("ALTER TABLE fish_rooms DROP COLUMN participant2_nickname"); } catch {}
+  // ---- 索引（CREATE INDEX IF NOT EXISTS 幂等，应用每次启动都会校验）----
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS idx_posts_created      ON posts(created_at DESC);" +
+    "CREATE INDEX IF NOT EXISTS idx_posts_slug         ON posts(slug);" +
+    "CREATE INDEX IF NOT EXISTS idx_essays_date        ON essays(date DESC);" +
+    "CREATE INDEX IF NOT EXISTS idx_moments_created    ON moments(created_at DESC);" +
+    "CREATE INDEX IF NOT EXISTS idx_albums_created     ON albums(created_at DESC);" +
+    "CREATE INDEX IF NOT EXISTS idx_photos_album       ON photos(album_id, created_at DESC);" +
+    "CREATE INDEX IF NOT EXISTS idx_projects_created   ON projects(created_at DESC);" +
+    "CREATE INDEX IF NOT EXISTS idx_music_created      ON music(created_at DESC);" +
+    "CREATE INDEX IF NOT EXISTS idx_fish_rooms_code    ON fish_rooms(code);" +
+    "CREATE INDEX IF NOT EXISTS idx_fish_participants_room  ON fish_room_participants(room_id, last_active);" +
+    "CREATE INDEX IF NOT EXISTS idx_fish_participants_token ON fish_room_participants(token);" +
+    "CREATE INDEX IF NOT EXISTS idx_fish_messages_room       ON fish_messages(room_id, id);" +
+    "CREATE INDEX IF NOT EXISTS idx_users_username           ON users(username);"
+  );
 
-  // Initialize 100 rooms
+  // ---- fish 房间初始化：只补不足，不 DELETE（避免清掉消息外键）----
   const existingResult = db.exec("SELECT COUNT(*) FROM fish_rooms");
   const existingCount = Number(existingResult[0]?.values?.[0]?.[0] || 0);
   if (existingCount < ROOM_COUNT) {
-    db.run("DELETE FROM fish_rooms");
     for (let i = 0; i < ROOM_COUNT; i++) {
       const code = "FISH" + String(i).padStart(2, "0");
-      db!.run("INSERT OR IGNORE INTO fish_rooms (code) VALUES (?)", [code]);
+      db!.run("INSERT OR IGNORE INTO fish_rooms (code, max_participants) VALUES (?, ?)", [code, MAX_PARTICIPANTS]);
     }
   }
 

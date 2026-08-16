@@ -7,6 +7,7 @@ import {
   deleteProject,
   getProjectStats,
 } from '../controllers/projectController';
+import { requireAdmin } from '../auth';
 
 const router = Router();
 
@@ -14,8 +15,8 @@ const router = Router();
 router.get('/stats', getProjectStats);
 router.get('/', getProjects);
 router.get('/:id', getProjectById);
-router.post('/', createProject);
-router.put('/:id', updateProject);
-router.delete('/:id', deleteProject);
+router.post('/', requireAdmin, createProject);
+router.put('/:id', requireAdmin, updateProject);
+router.delete('/:id', requireAdmin, deleteProject);
 
 export default router;

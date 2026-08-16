@@ -2,6 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import { Send, LogOut, Users, MessageSquare, User, Plus, ArrowRight } from "lucide-react";
+import { authFetch } from "@/lib/api";
+import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
 
 interface Participant {
   id: number;
@@ -41,6 +44,7 @@ const LS_ROOM_ID = "fish_room_id";
 const LS_ROOMS = "fish_saved_rooms";
 
 export default function FishPage() {
+  const { user, loading: authLoading } = useAuth();
   const [nickname, setNickname] = useState("");
   const [joinCode, setJoinCode] = useState("");
   const [room, setRoom] = useState<Room | null>(null);
@@ -92,7 +96,7 @@ export default function FishPage() {
         setSavedRooms(rooms);
         // Fetch status for each room
         rooms.forEach(r => {
-          fetch("/api/fish/room/" + encodeURIComponent(r.code))
+          authFetch("/api/fish/room/" + encodeURIComponent(r.code))
             .then(res => res.json())
             .then(data => {
               if (data.room) {
@@ -131,7 +135,7 @@ export default function FishPage() {
   const handleEnterSavedRoom = async (code: string, nick: string) => {
     setIsLoading(true);
     try {
-      const joinRes = await fetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
+      const joinRes = await authFetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nickname: nick }),
@@ -158,10 +162,10 @@ export default function FishPage() {
   const restoreSession = async (token: string, code: string, roomId: number, nick: string) => {
     try {
       // Try to use existing token first
-      const pRes = await fetch("/api/fish/participant?participantToken=" + encodeURIComponent(token));
+      const pRes = await authFetch("/api/fish/participant?participantToken=" + encodeURIComponent(token));
       if (pRes.ok) {
         // Token is still valid - restore directly
-        const rRes = await fetch("/api/fish/room/" + encodeURIComponent(code) + "/full?participantToken=" + encodeURIComponent(token));
+        const rRes = await authFetch("/api/fish/room/" + encodeURIComponent(code) + "/full?participantToken=" + encodeURIComponent(token));
         if (rRes.ok) {
           const rData = await rRes.json();
           setRoom(rData.room);
@@ -172,7 +176,7 @@ export default function FishPage() {
         }
       }
       // Token expired or room gone - re-join with same nickname (creates new token)
-      const joinRes = await fetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
+      const joinRes = await authFetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nickname: nick }),
@@ -193,7 +197,7 @@ export default function FishPage() {
 
   const fetchMessages = useCallback(async (token: string, roomId: number) => {
     try {
-      const res = await fetch("/api/fish/room/" + roomId + "/messages?participantToken=" + encodeURIComponent(token));
+      const res = await authFetch("/api/fish/room/" + roomId + "/messages?participantToken=" + encodeURIComponent(token));
       if (!res.ok) return;
       const data = await res.json();
       const msgs: Message[] = data.messages || [];
@@ -232,7 +236,7 @@ export default function FishPage() {
     if (!nickname.trim()) return;
     setIsLoading(true);
     try {
-      const res = await fetch("/api/fish/room", {
+      const res = await authFetch("/api/fish/room", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nickname: nickname.trim() }),
@@ -261,7 +265,7 @@ export default function FishPage() {
     if (!nickname.trim() || !code) return;
     setIsLoading(true);
     try {
-      const res = await fetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
+      const res = await authFetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nickname: nickname.trim() }),
@@ -291,7 +295,7 @@ export default function FishPage() {
     if (!msg || !participantToken || !room) return;
     setSendingMsg("");
     try {
-      await fetch("/api/fish/room/" + room.id + "/messages", {
+      await authFetch("/api/fish/room/" + room.id + "/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ participantToken, content: msg }),
@@ -315,7 +319,7 @@ export default function FishPage() {
   const handleFullyLeaveRoom = async () => {
     if (!participantToken || !room) return;
     try {
-      await fetch("/api/fish/room/" + room.id + "/leave", {
+      await authFetch("/api/fish/room/" + room.id + "/leave", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ participantToken }),
@@ -353,10 +357,25 @@ export default function FishPage() {
     return d.toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
   };
 
-  if (isLoading) {
+  if (authLoading || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center pt-16">
         <div className="w-8 h-8 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center pt-16 px-4">
+        <div className="text-center backdrop-blur-xl bg-white/30 dark:bg-slate-900/30 rounded-2xl p-8 border border-white/20 dark:border-white/10 max-w-sm">
+          <MessageSquare className="w-12 h-12 mx-auto mb-4 text-indigo-500" />
+          <h1 className="text-xl font-bold text-slate-800 dark:text-white mb-2">需要登录</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">登录后即可使用摸鱼聊天室</p>
+          <Link href="/login" className="inline-block px-6 py-2.5 rounded-xl bg-indigo-600/80 hover:bg-indigo-600 text-white font-medium transition shadow-lg shadow-indigo-500/30">
+            去登录
+          </Link>
+        </div>
       </div>
     );
   }
