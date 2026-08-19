@@ -1,0 +1,146 @@
+﻿import { Config, DiaoChanStats } from "../config";
+import { Unit } from "../Unit";
+import { Zombie } from "./Zombie";
+import type { GamePlayScene } from "../GamePlayScene";
+import { playSfx } from "../audio/audioSystem";
+
+export class DiaoChan extends Zombie {
+  private homeX: number;
+  private normalCooldown = 0;
+  private fanCooldown = 0;
+  private moonlightCooldown = 0;
+  private restTimer = 0;
+  private charging = false;
+  private chargeRemaining = 0;
+  private pauseTimer = 0;
+
+  constructor(
+    scene: GamePlayScene,
+    x: number,
+    y: number,
+    row: number,
+    strengthMultiplier = 1,
+  ) {
+    super(scene, x, y, row, "normal", strengthMultiplier);
+    this.homeX = x;
+    this.setText("貂蝉");
+    this.setFontSize(22);
+    this.setColor("#e879f9");
+    this.setOrigin(0.5);
+    this.maxHp = DiaoChanStats.hp * strengthMultiplier;
+    this.hp = this.maxHp;
+    this.speed = DiaoChanStats.speed;
+  }
+
+  protected override playDeathSfx() {
+    playSfx("diaochan_death");
+  }
+
+  override update(scene: GamePlayScene, time: number, delta: number) {
+    if (this.dead) return;
+    this.syncHealthBar();
+    this.normalCooldown -= delta;
+    this.fanCooldown -= delta;
+    this.moonlightCooldown -= delta;
+
+    if (this.restTimer > 0) {
+      this.restTimer -= delta;
+      this.wiggle(time);
+      return;
+    }
+
+    if (this.charging) {
+      this.chargeRemaining -= delta;
+      if (this.chargeRemaining <= 0) {
+        playSfx("diaochan_skill2");
+        scene.diaoChanMoonlight(DiaoChanStats.moonlightDamage * this.strengthMultiplier);
+        this.charging = false;
+        this.moonlightCooldown = DiaoChanStats.moonlightCooldown;
+      }
+      return;
+    }
+
+    const col = scene.getColFromX(this.x);
+    const unit = scene.getUnitAt(this.row, Math.min(Config.cols - 1, col + 1));
+
+    if (this.fanCooldown <= 0 && this.moonlightCooldown <= 0) {
+      if (Math.random() < 0.5) {
+        this.skillFan(scene, unit?.col);
+      } else {
+        this.skillMoonlight(scene);
+      }
+      return;
+    }
+
+    if (this.fanCooldown <= 0) {
+      this.skillFan(scene, unit?.col);
+      return;
+    }
+
+    if (this.moonlightCooldown <= 0) {
+      this.skillMoonlight(scene);
+      return;
+    }
+
+    if (unit && !unit.dead) {
+      this.normalAttack(scene, unit);
+      return;
+    }
+
+    this.walkWithSway(time, delta);
+  }
+
+  private wiggle(time: number) {
+    this.setX(this.homeX + Math.sin(time / 420) * DiaoChanStats.wanderAmplitude);
+  }
+
+  private walkWithSway(time: number, delta: number) {
+    this.pauseTimer -= delta;
+    if (this.pauseTimer <= 0) {
+      this.x += DiaoChanStats.speed * 0.35;
+      this.homeX = this.x;
+      this.pauseTimer = 900;
+    }
+    this.setX(this.homeX + Math.sin(time / 340) * DiaoChanStats.wanderAmplitude);
+  }
+
+  private normalAttack(scene: GamePlayScene, unit: Unit) {
+    if (this.normalCooldown > 0) return;
+    const damage = DiaoChanStats.normalDamage * this.strengthMultiplier;
+    const neighbor = scene.getUnitAt(unit.row, Math.min(Config.cols - 1, unit.col + 1));
+    unit.takeDamage(damage);
+    if (neighbor && !neighbor.dead) {
+      neighbor.takeDamage(damage);
+    }
+    scene.showDiaoChanFan(unit);
+    playSfx("diaochan_attack");
+    this.normalCooldown = 1200;
+  }
+
+  private skillFan(scene: GamePlayScene, targetCol?: number) {
+    const damage = DiaoChanStats.fanDamage * this.strengthMultiplier;
+    const col = targetCol ?? Math.min(Config.cols - 1, scene.getColFromX(this.x) + 1);
+
+    for (let row = Math.max(0, this.row - 1); row <= Math.min(Config.rows - 1, this.row + 1); row += 1) {
+      const target = scene.getUnitAt(row, col);
+      if (target && !target.dead) {
+        target.takeDamage(damage);
+        if (!target.dead && DiaoChanStats.charmEnabled) {
+          target.charm(DiaoChanStats.charmDuration);
+        }
+      }
+    }
+
+    const center = scene.getCellCenter(this.row, col);
+    scene.showDiaoChanFanAt(center.x, center.y);
+    playSfx("diaochan_skill1");
+    this.fanCooldown = DiaoChanStats.fanCooldown;
+    this.restTimer = DiaoChanStats.restTime;
+  }
+
+  private skillMoonlight(scene: GamePlayScene) {
+    this.charging = true;
+    this.chargeRemaining = DiaoChanStats.moonlightCharge;
+    scene.showDiaoChanCharge(this);
+  }
+}

@@ -7,9 +7,9 @@ import { getDb, saveDb } from '../db';
 export async function getFarmState(req: Request, res: Response) {
   try {
     const db = await getDb();
-    const userId = (req as any).user.userId;
+    const userId = (req as any).user.id;
 
-    const result = db.exec('SELECT * FROM game_farm_states WHERE user_id = ?');
+    const result = db.exec('SELECT * FROM game_farm_states WHERE user_id = ?', [userId]);
     if (!result[0]?.values?.length) {
       // 首次进入，用默认值插入一行
       db.run('INSERT INTO game_farm_states (user_id) VALUES (?)', [userId]);
@@ -49,6 +49,7 @@ export async function getFarmState(req: Request, res: Response) {
       refreshCount: Number(get('refresh_count')) || 0,
     });
   } catch (err) {
+    console.error('[gameController] getFarmState error:', err);
     res.status(500).json({ error: 'Failed to get farm state' });
   }
 }
@@ -57,7 +58,7 @@ export async function getFarmState(req: Request, res: Response) {
 export async function updateFarmState(req: Request, res: Response) {
   try {
     const db = await getDb();
-    const userId = (req as any).user.userId;
+    const userId = (req as any).user.id;
     const {
       coins, level, exp, plots, inventory,
       seedInventory, itemInventory, activeBuffs,
@@ -65,7 +66,7 @@ export async function updateFarmState(req: Request, res: Response) {
     } = req.body;
 
     // UPSERT：不存在就插入，存在就更新
-    const existing = db.exec('SELECT id FROM game_farm_states WHERE user_id = ?');
+    const existing = db.exec('SELECT id FROM game_farm_states WHERE user_id = ?', [userId]);
     if (!existing[0]?.values?.length) {
       db.run(
         `INSERT INTO game_farm_states
@@ -102,6 +103,7 @@ export async function updateFarmState(req: Request, res: Response) {
     await saveDb();
     res.json({ success: true });
   } catch (err) {
+    console.error('[gameController] updateFarmState error:', err);
     res.status(500).json({ error: 'Failed to update farm state' });
   }
 }

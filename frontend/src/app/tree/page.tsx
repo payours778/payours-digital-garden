@@ -75,6 +75,22 @@ const GAMES: GameItem[] = [
     href: "/fish",
   },
   {
+    id: "baoweiadou",
+    title: "保卫阿斗",
+    description:
+      "文字武将塔防，棋盘布阵、武将合成、波次防守，阿斗需要你的守护。进入军营招募武将，随时开始战斗！",
+    emoji: "🏯",
+    gradient: "bg-gradient-to-br from-amber-600 via-orange-600 to-rose-600",
+    tag: "塔防",
+    category: "动作",
+    duration: "10分钟",
+    status: "可玩",
+    plays: "9.9万",
+    playValue: 99000,
+    rating: "9.5",
+    href: "/tree/baoweiadou",
+  },
+  {
     id: "mosaic",
     title: "像素拼拼乐",
     description: "经典三消益智小游戏，连击释放大招，挑战排行榜高分。",
