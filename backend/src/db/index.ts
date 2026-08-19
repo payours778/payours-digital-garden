@@ -149,6 +149,22 @@ export async function getDb(): Promise<Database> {
     "  sender_nickname TEXT," +
     "  content TEXT NOT NULL," +
     "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
+    ");" +
+    // ---- 灵境游戏：农场数据（每个用户一行）----
+    "CREATE TABLE IF NOT EXISTS game_farm_states (" +
+    "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
+    "  user_id INTEGER NOT NULL UNIQUE," +
+    "  coins INTEGER DEFAULT 100," +
+    "  level INTEGER DEFAULT 1," +
+    "  exp INTEGER DEFAULT 0," +
+    "  plots TEXT DEFAULT '[]'," +
+    "  inventory TEXT DEFAULT '[]'," +
+    "  seed_inventory TEXT DEFAULT '[{\"cropId\":\"wheat\",\"count\":8},{\"cropId\":\"carrot\",\"count\":5},{\"cropId\":\"tomato\",\"count\":3}]'," +
+    "  item_inventory TEXT DEFAULT '[]'," +
+    "  active_buffs TEXT DEFAULT '[]'," +
+    "  growth_boost_multiplier INTEGER DEFAULT 1," +
+    "  refresh_count INTEGER DEFAULT 0," +
+    "  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
     ");"
   );
 
@@ -187,7 +203,8 @@ export async function getDb(): Promise<Database> {
     "CREATE INDEX IF NOT EXISTS idx_fish_participants_room  ON fish_room_participants(room_id, last_active);" +
     "CREATE INDEX IF NOT EXISTS idx_fish_participants_token ON fish_room_participants(token);" +
     "CREATE INDEX IF NOT EXISTS idx_fish_messages_room       ON fish_messages(room_id, id);" +
-    "CREATE INDEX IF NOT EXISTS idx_users_username           ON users(username);"
+    "CREATE INDEX IF NOT EXISTS idx_users_username           ON users(username);" +
+    "CREATE INDEX IF NOT EXISTS idx_game_farm_user           ON game_farm_states(user_id);"
   );
 
   // ---- fish 房间初始化：只补不足，不 DELETE（避免清掉消息外键）----

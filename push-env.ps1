@@ -32,8 +32,8 @@ Write-Host "  Local:      $LOCAL_ENV" -ForegroundColor $C_DIM
 Write-Host "  Remote:     $REMOTE_ENV" -ForegroundColor $C_DIM
 Write-Host ""
 
-# --- [1/4] Check local .env ---
-Write-Host "  [1/4] Check local .env file..." -ForegroundColor $C_STEP
+# --- [1/5] Check local .env ---
+Write-Host "  [1/5] Check local .env file..." -ForegroundColor $C_STEP
 if (-not (Test-Path $LOCAL_ENV)) {
     Stop-OnError "Local .env not found: $LOCAL_ENV"
 }
@@ -70,9 +70,9 @@ if ($createCmds.Count -gt 0) {
     Write-Host "  [OK] Directory structure already in place" -ForegroundColor $C_OK
 }
 
-# --- [3/4] SCP upload ---
+# --- [3/5] SCP upload ---
 Write-Host ""
-Write-Host "  [3/4] Upload .env to server..." -ForegroundColor $C_STEP
+Write-Host "  [3/5] Upload .env to server..." -ForegroundColor $C_STEP
 scp $LOCAL_ENV "${SERVER}:${REMOTE_ENV}" 2>&1 |
     ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
 if ($LASTEXITCODE -ne 0) {
@@ -96,9 +96,19 @@ try {
     Write-Host "  [!] Cannot verify remote size, please check manually" -ForegroundColor $C_WARN
 }
 
+# --- [5/5] Restart backend ---
 Write-Host ""
-Write-Host "  ============================================" -ForegroundColor $C_TITLE
-Write-Host "  Done! Run 'pm2 restart blog-backend' on server" -ForegroundColor $C_WARN
-Write-Host "  to reload environment variables." -ForegroundColor $C_WARN
-Write-Host "  ============================================" -ForegroundColor $C_TITLE
+Write-Host "  [5/5] Restart backend (pm2 restart blog-backend)..." -ForegroundColor $C_STEP
+ssh $SERVER "pm2 restart blog-backend" 2>&1 |
+    ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "  [!] PM2 restart failed, please restart manually on server" -ForegroundColor $C_WARN
+} else {
+    Write-Host "  [OK] blog-backend restarted, env reloaded" -ForegroundColor $C_OK
+}
+
+Write-Host ""
+Write-Host "  ============================================" -ForegroundColor $C_OK
+Write-Host "  Done! .env pushed & backend restarted." -ForegroundColor $C_OK
+Write-Host "  ============================================" -ForegroundColor $C_OK
 Write-Host ""

@@ -9,6 +9,7 @@ import photosRouter from './routes/photos';
 import musicRouter from './routes/music';
 import uploadRouter from './routes/upload';
 import fishRouter from './routes/fish';
+import gamesRouter from './routes/games';
 import { usersRouter } from './auth';
 import getDb from './db';
 
@@ -29,6 +30,7 @@ app.use('/api/photos', photosRouter);
 app.use('/api/music', musicRouter);
 app.use('/api/upload', uploadRouter);
 app.use('/api/fish', fishRouter);
+app.use('/api/games', gamesRouter);
 app.use('/api/users', usersRouter);
 
 app.get('/api/health', (req, res) => {
