@@ -214,10 +214,7 @@ blog-test/
 ├── database/
 │   └── schema.sql                   # 建表 SQL
 │
-├── deploy-1-build.ps1               # 📦 部署脚本 1 · 本地构建
-├── deploy-2-pack.ps1                # 📦 部署脚本 2 · 打包产物
-├── deploy-3-upload.ps1              # 📦 部署脚本 3 · 免密上传
-├── deploy-4-server.sh               # 📦 部署脚本 4 · 服务器部署
+├── deploy.ps1                       # 📦 一键部署脚本（本地执行即可）
 └── SSH密钥配置指南.md                # 📖 SSH 配置文档
 ```
 
@@ -265,25 +262,18 @@ npm run dev:backend     # 启动后端
 
 完整图文步骤见 → [SSH密钥配置指南.md](./SSH密钥配置指南.md)
 
-### 🚀 4 步部署到服务器
+### 🚀 一键部署
 
-> 在本地 PowerShell 中执行前 3 步，服务器执行最后 1 步。
+> 在本地 PowerShell 中执行一条命令即可。
 
 ```powershell
-# ===== 本地操作 =====
 cd e:\data\blog-test
-
-.\deploy-1-build.ps1    # 1️⃣ 构建前端 + 后端（TypeScript 编译）
-.\deploy-2-pack.ps1     # 2️⃣ 打包生产产物为 tar.gz
-.\deploy-3-upload.ps1   # 3️⃣ SCP 免密上传到服务器
-
-# ===== 服务器操作 =====
-ssh root@120.77.201.34 'bash /var/www/blog/deploy-4-server.sh'
+.\deploy.ps1
 ```
 
-> ✅ **自动化流程**：服务器端会自动完成 → 清旧产物 → 解压 → 装生产依赖 → 重启 PM2 进程
+> ✅ **自动化流程**：构建 → 打包 → 上传 → 服务器部署（解压 → 装依赖 → 重启 PM2）
 >
-> 💾 **数据安全**：数据库文件 `backend/data/blog.db` 默认**不打包、不覆盖**，保留服务器真实数据。
+> 💾 **数据安全**：数据库文件默认**不打包、不覆盖**，保留服务器真实数据。
 
 ---
 
