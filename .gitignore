@@ -1,0 +1,32 @@
+# 部署临时打包产物（由 deploy.ps1 生成，体积巨大，禁止入库）
+*.tar.gz
+backend-deploy.tar.gz
+frontend-deploy.tar.gz
+
+# 依赖
+node_modules/
+backend/node_modules/
+frontend/node_modules/
+
+# 构建产物
+.next/
+backend/dist/
+
+# 本地数据库与备份
+*.db
+*.db-*
+database/*.db
+database/*.sqlite
+
+# 环境变量
+.env
+.env.local
+.env.*.local
+
+# 日志
+*.log
+npm-debug.log*
+
+# 系统文件
+.DS_Store
+Thumbs.db
