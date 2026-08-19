@@ -33,7 +33,29 @@ function Stop-OnError($msg) {
     Write-Host ""
     Write-Host "  [X] $msg" -ForegroundColor $C_ERR
     Write-Host ""
-    exit 1
+    throw $msg
+}
+
+# ---- 清理本地部署包（无论成功失败都会执行）----
+function Cleanup-Packages {
+    Write-Host ""
+    Write-Host "  [Cleanup] Removing local packages..." -ForegroundColor $C_STEP
+    $cleaned = 0
+    foreach ($pkg in @("frontend-deploy.tar.gz", "backend-deploy.tar.gz")) {
+        $pkgPath = Join-Path $ROOT $pkg
+        if (Test-Path $pkgPath) {
+            Remove-Item $pkgPath -Force -ErrorAction SilentlyContinue
+            if (-not (Test-Path $pkgPath)) {
+                Write-Host "    - $pkg" -ForegroundColor $C_DIM
+                $cleaned++
+            }
+        }
+    }
+    if ($cleaned -gt 0) {
+        Write-Host "  [OK] Removed $cleaned package(s)" -ForegroundColor $C_OK
+    } else {
+        Write-Host "  [OK] No packages to clean" -ForegroundColor $C_DIM
+    }
 }
 
 # ============================================================
@@ -43,6 +65,7 @@ function Stop-OnError($msg) {
 $totalSteps = 4
 $startTime = Get-Date
 
+try {
 Write-Host ""
 Write-Host "  ============================================" -ForegroundColor $C_TITLE
 Write-Host "       Digital Garden - Yi Jian Bu Shu" -ForegroundColor $C_TITLE
@@ -209,30 +232,13 @@ ssh $SERVER $remoteScript 2>&1 | ForEach-Object { Write-Host "    $_" }
 if ($LASTEXITCODE -ne 0) { Stop-OnError "server deploy failed" }
 
 # ============================================================
-#  Cleanup local packages
-# ============================================================
-Write-Host ""
-Write-Host "  [Cleanup] Removing local packages..." -ForegroundColor $C_STEP
-$cleaned = 0
-foreach ($pkg in @("frontend-deploy.tar.gz", "backend-deploy.tar.gz")) {
-    $pkgPath = Join-Path $ROOT $pkg
-    if (Test-Path $pkgPath) {
-        Remove-Item $pkgPath -Force -ErrorAction SilentlyContinue
-        if (-not (Test-Path $pkgPath)) {
-            Write-Host "    - $pkg" -ForegroundColor $C_DIM
-            $cleaned++
-        }
-    }
-}
-if ($cleaned -gt 0) {
-    Write-Host "  [OK] Removed $cleaned package(s)" -ForegroundColor $C_OK
-} else {
-    Write-Host "  [OK] No packages to clean" -ForegroundColor $C_DIM
-}
-
-# ============================================================
 #  完成
 # ============================================================
+} finally {
+    # 无论部署成功或失败，都清理本地部署包，避免大文件残留
+    Cleanup-Packages
+}
+
 $endTime = Get-Date
 $elapsed = ($endTime - $startTime).ToString("mm\:ss")
 
