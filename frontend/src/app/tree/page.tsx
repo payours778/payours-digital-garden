@@ -39,6 +39,7 @@ type GameItem = {
   playValue: number;
   rating: string;
   href: string;
+  cover?: string;
 };
 
 const GAMES: GameItem[] = [
@@ -65,6 +66,7 @@ const GAMES: GameItem[] = [
       "创建或加入一个摸鱼房间，和朋友一起开黑聊天的同时，享受轻松的休闲时间。",
     emoji: "🐟",
     gradient: "bg-gradient-to-br from-sky-500 via-blue-500 to-cyan-500",
+    cover: "/games/fish-cover.png",
     tag: "新游",
     category: "休闲",
     duration: "不限时",
@@ -553,10 +555,15 @@ function Hero({ user, category, setCategory, openGame, favorites }: HeroProps) {
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
           >
-            <div className={`hero-media hero-grad-bg ${game.gradient}`}>
-              <div className="hero-media-emoji">
-                <span>{game.emoji}</span>
-              </div>
+            <div
+              className={`hero-media hero-grad-bg ${game.cover ? "" : game.gradient}`}
+              style={game.cover ? { backgroundImage: `url(${game.cover})` } : undefined}
+            >
+              {!game.cover && (
+                <div className="hero-media-emoji">
+                  <span>{game.emoji}</span>
+                </div>
+              )}
               <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/30" />
             </div>
             <div className="hero-shade" />
@@ -757,7 +764,10 @@ function Sidebar({ category, setCategory, openGame }: SidebarProps) {
               <span className="rank-index">
                 {String(index + 1).padStart(2, "0")}
               </span>
-              <span className={`rank-cover rank-cover-grad ${game.gradient}`}>
+              <span
+                className={`rank-cover rank-cover-grad ${game.cover ? "" : game.gradient}`}
+                style={game.cover ? { backgroundImage: `url(${game.cover})` } : undefined}
+              >
                 <span className="rank-cover-emoji">{game.emoji}</span>
               </span>
               <span className="rank-copy">
@@ -944,8 +954,11 @@ function GameCard({ game, isFavorite, onOpen, onToggleFavorite }: GameCardProps)
       }}
     >
       {/* 封面 */}
-      <div className={`game-card-media game-card-cover ${game.gradient}`}>
-        <span className="game-card-emoji">{game.emoji}</span>
+      <div
+        className={`game-card-media game-card-cover ${game.cover ? "" : game.gradient}`}
+        style={game.cover ? { backgroundImage: `url(${game.cover})` } : undefined}
+      >
+        {!game.cover && <span className="game-card-emoji">{game.emoji}</span>}
         <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-black/20 pointer-events-none" />
         {disabled && (
           <span className="game-dev-overlay">
@@ -1337,8 +1350,8 @@ html.dark .lingjing-root .hero-quick-btn.q-amber { color: var(--amber-700); }
   bottom: 16px; left: 16px; right: 16px; z-index: 4;
   padding: 16px;
   border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--content1) 80%, transparent);
-  -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px);
+  background: color-mix(in srgb, var(--content1) 20%, transparent);
+  -webkit-backdrop-filter: blur(28px); backdrop-filter: blur(28px);
   box-shadow: var(--shadow-md);
   animation: lj-glass-slide-up 0.4s ease 0.1s both;
 }
