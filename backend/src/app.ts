@@ -12,6 +12,7 @@ import fishRouter from './routes/fish';
 import gamesRouter from './routes/games';
 import { usersRouter } from './auth';
 import getDb from './db';
+import { roomPool } from './services/roomPool';
 
 dotenv.config();
 
@@ -37,10 +38,26 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running' });
 });
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 async function startServer() {
   try {
     await getDb();
     console.log('Database initialized successfully');
+
+    // 启动时确保持久公开大厅房存在，并立即跑一次临时房清理
+    await roomPool.ensurePublicRooms();
+    const cleaned = await roomPool.destroyTempRooms();
+    if (cleaned > 0) console.log(`[RoomPool] cleaned ${cleaned} stale temp room(s)`);
+    setInterval(async () => {
+      try {
+        const n = await roomPool.destroyTempRooms();
+        if (n > 0) console.log(`[RoomPool] daily cleanup removed ${n} temp room(s)`);
+      } catch (e) {
+        console.error('[RoomPool] cleanup error:', e);
+      }
+    }, DAY_MS);
+
     app.listen(PORT, () => {
       console.log(`Server running on http://localhost:${PORT}`);
     });

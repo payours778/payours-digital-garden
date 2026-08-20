@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Send, LogOut, Users, MessageSquare, User, Plus, ArrowRight } from "lucide-react";
+import { Send, LogOut, Users, MessageSquare, User, Plus, ArrowRight, Globe } from "lucide-react";
 import { authFetch } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import Link from "next/link";
@@ -18,7 +18,12 @@ interface Participant {
 interface Room {
   id: number;
   code: string;
+  owner_id: number | null;
+  room_type: string;
+  lifecycle: string;
+  is_public: number;
   max_participants: number;
+  destroyed_at: string | null;
   participants: Participant[];
   created_at: string;
 }
@@ -33,20 +38,26 @@ interface Message {
 
 interface SavedRoom {
   code: string;
+  roomId: number;
+  ownerId: number | null;
   nickname: string;
   lastSeen: string;
 }
 
-const LS_NICKNAME = "fish_nickname";
-const LS_TOKEN = "fish_token";
-const LS_ROOM_CODE = "fish_room_code";
-const LS_ROOM_ID = "fish_room_id";
-const LS_ROOMS = "fish_saved_rooms";
+// 会话按账号隔离：每个账号各自独立的房间/消息列表，避免换号串台
+const LS_SESSION_KEYS = (account: string) => ({
+  token: "fish_token_" + account,
+  code: "fish_room_code_" + account,
+  id: "fish_room_id_" + account,
+});
 
 export default function FishPage() {
   const { user, loading: authLoading } = useAuth();
-  const [nickname, setNickname] = useState("");
+  const nickname = user?.username || "";
   const [joinCode, setJoinCode] = useState("");
+  const [createIsPublic, setCreateIsPublic] = useState(false);
+  const [createIsTemp, setCreateIsTemp] = useState(false);
+  const [publicRooms, setPublicRooms] = useState<Room[]>([]);
   const [room, setRoom] = useState<Room | null>(null);
   const [participantToken, setParticipantToken] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -69,67 +80,97 @@ export default function FishPage() {
     }
   }, [messages]);
 
-  // Restore session on load
+  // Restore session on load（登录态就绪后按账号恢复，切换账号自动清空上一个人的状态）
   useEffect(() => {
-    const savedNick = localStorage.getItem(LS_NICKNAME);
-    const savedToken = localStorage.getItem(LS_TOKEN);
-    const savedRoomCode = localStorage.getItem(LS_ROOM_CODE);
-    const savedRoomId = localStorage.getItem(LS_ROOM_ID);
+    if (authLoading) return;
+    if (!user) {
+      setIsLoading(false);
+      return;
+    }
 
-    if (savedNick) setNickname(savedNick);
+    // 切换账号时先清掉上一个账号的聊天状态
+    setRoom(null);
+    setParticipantToken(null);
+    setMessages([]);
+    setIsChatting(false);
+    lastMsgIdRef.current = 0;
 
-    // Load saved room history
+    const keys = LS_SESSION_KEYS(user.username || "");
+    const savedToken = localStorage.getItem(keys.token);
+    const savedRoomCode = localStorage.getItem(keys.code);
+    const savedRoomId = localStorage.getItem(keys.id);
+
+    // Load saved room history + public lobby
     loadSavedRooms();
+    loadPublicRooms();
 
     if (savedToken && savedRoomCode && savedRoomId) {
-      restoreSession(savedToken, savedRoomCode, parseInt(savedRoomId), savedNick || "");
+      restoreSession(savedToken, savedRoomCode, parseInt(savedRoomId));
     } else {
       setIsLoading(false);
     }
-  }, []);
+  }, [authLoading, user?.username]);
 
   const loadSavedRooms = () => {
-    try {
-      const raw = localStorage.getItem(LS_ROOMS);
-      if (raw) {
-        const rooms: SavedRoom[] = JSON.parse(raw);
-        setSavedRooms(rooms);
-        // Fetch status for each room
-        rooms.forEach(r => {
-          authFetch("/api/fish/room/" + encodeURIComponent(r.code))
-            .then(res => res.json())
-            .then(data => {
-              if (data.room) {
-                setRoomStatus(prev => ({ ...prev, [r.code]: { count: data.room.participants.length, max: data.room.max_participants } }));
-              }
-            })
-            .catch(() => {});
-        });
-      }
-    } catch {}
+    authFetch("/api/fish/my-rooms")
+      .then(res => res.json())
+      .then(data => {
+        if (data.rooms) {
+          const rooms: SavedRoom[] = data.rooms.map((r: any) => ({
+            code: r.code,
+            roomId: r.id,
+            ownerId: r.owner_id ?? null,
+            nickname: nickname,
+            lastSeen: new Date().toISOString(),
+          }));
+          setSavedRooms(rooms);
+          data.rooms.forEach((r: any) => {
+            setRoomStatus(prev => ({ ...prev, [r.code]: { count: r.participants.length, max: r.max_participants } }));
+          });
+        }
+      })
+      .catch(() => {});
+  };
+
+  const loadPublicRooms = () => {
+    authFetch("/api/fish/rooms/public")
+      .then(res => res.json())
+      .then(data => {
+        if (data.rooms) setPublicRooms(data.rooms);
+      })
+      .catch(() => {});
   };
 
   const saveRoomToHistory = (code: string, nick: string) => {
-    const existing = localStorage.getItem(LS_ROOMS);
-    let rooms: SavedRoom[] = existing ? JSON.parse(existing) : [];
-    rooms = rooms.filter(r => r.code !== code);
-    rooms.unshift({ code, nickname: nick, lastSeen: new Date().toISOString() });
-    if (rooms.length > 20) rooms = rooms.slice(0, 20);
-    localStorage.setItem(LS_ROOMS, JSON.stringify(rooms));
-    setSavedRooms(rooms);
+    // 房间归属已按账号存入后端库，进入后直接刷新列表，不再写入 localStorage
+    loadSavedRooms();
   };
 
-  const removeRoomFromHistory = (code: string) => {
-    const existing = localStorage.getItem(LS_ROOMS);
-    let rooms: SavedRoom[] = existing ? JSON.parse(existing) : [];
-    rooms = rooms.filter(r => r.code !== code);
-    localStorage.setItem(LS_ROOMS, JSON.stringify(rooms));
-    setSavedRooms(rooms);
+  const removeRoomFromHistory = async (code: string) => {
+    const room = savedRooms.find(r => r.code === code);
+    // 房主删除整个房间；普通成员仅退出
+    if (room?.ownerId === user?.id) {
+      if (!window.confirm("确定删除房间 " + code + " 吗？房间内消息将一并删除。")) {
+        return;
+      }
+    }
+    setSavedRooms(prev => prev.filter(r => r.code !== code));
     setRoomStatus(prev => {
       const copy = { ...prev };
       delete copy[code];
       return copy;
     });
+    try {
+      if (room?.roomId) {
+        if (room.ownerId === user?.id) {
+          await authFetch("/api/fish/room/" + room.roomId, { method: "DELETE" });
+        } else {
+          await authFetch("/api/fish/room/" + room.roomId + "/leave", { method: "POST" });
+        }
+      }
+    } catch {}
+    loadSavedRooms();
+    loadPublicRooms();
   };
 
   const handleEnterSavedRoom = async (code: string, nick: string) => {
@@ -138,14 +179,14 @@ export default function FishPage() {
       const joinRes = await authFetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: nick }),
+        body: JSON.stringify({}),
       });
       if (!joinRes.ok) {
         alert("房间不可用");
         return;
       }
       const data = await joinRes.json();
-      saveSession(nick, data.participantToken, data.room.code, data.room.id);
+      saveSession(data.participantToken, data.room.code, data.room.id);
       saveRoomToHistory(data.room.code, nick);
       setRoom(data.room);
       setParticipantToken(data.participantToken);
@@ -159,7 +200,7 @@ export default function FishPage() {
     }
   };
 
-  const restoreSession = async (token: string, code: string, roomId: number, nick: string) => {
+  const restoreSession = async (token: string, code: string, roomId: number) => {
     try {
       // Try to use existing token first
       const pRes = await authFetch("/api/fish/participant?participantToken=" + encodeURIComponent(token));
@@ -175,15 +216,15 @@ export default function FishPage() {
           return;
         }
       }
-      // Token expired or room gone - re-join with same nickname (creates new token)
+      // Token expired or room gone - re-join (creates new token)
       const joinRes = await authFetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: nick }),
+        body: JSON.stringify({}),
       });
       if (!joinRes.ok) throw new Error("cannot rejoin");
       const joinData = await joinRes.json();
-      saveSession(nick, joinData.participantToken, joinData.room.code, joinData.room.id);
+      saveSession(joinData.participantToken, joinData.room.code, joinData.room.id);
       setRoom(joinData.room);
       setParticipantToken(joinData.participantToken);
       setIsChatting(true);
@@ -207,6 +248,10 @@ export default function FishPage() {
           lastMsgIdRef.current = lastId;
           setMessages(msgs);
         }
+      }
+      // 实时刷新在线成员/人数（后端按最近心跳时间判定）
+      if (Array.isArray(data.participants)) {
+        setRoom(prev => (prev ? { ...prev, participants: data.participants } : prev));
       }
     } catch {
       // ignore polling errors
@@ -232,22 +277,38 @@ export default function FishPage() {
     };
   }, [isChatting, participantToken, room, fetchMessages]);
 
+  // 大厅在线人数定时刷新（未进房间时每 15 秒）
+  useEffect(() => {
+    if (authLoading || !user || isChatting) return;
+    loadPublicRooms();
+    loadSavedRooms();
+    const t = setInterval(() => {
+      loadPublicRooms();
+      loadSavedRooms();
+    }, 15000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading, user?.username, isChatting]);
+
   const handleCreateRoom = async () => {
-    if (!nickname.trim()) return;
+    if (!nickname) {
+      alert("请先登录");
+      return;
+    }
     setIsLoading(true);
     try {
       const res = await authFetch("/api/fish/room", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: nickname.trim() }),
+        body: JSON.stringify({ isPublic: createIsPublic, lifecycle: createIsTemp ? "temp" : "permanent" }),
       });
       const data = await res.json();
       if (data.error) {
         alert(data.error);
         return;
       }
-      saveSession(nickname.trim(), data.participantToken, data.room.code, data.room.id);
-      saveRoomToHistory(data.room.code, nickname.trim());
+      saveSession(data.participantToken, data.room.code, data.room.id);
+      saveRoomToHistory(data.room.code, nickname);
       setRoom(data.room);
       setParticipantToken(data.participantToken);
       lastMsgIdRef.current = 0;
@@ -262,21 +323,21 @@ export default function FishPage() {
 
   const handleJoinRoom = async () => {
     const code = joinCode.trim().toUpperCase();
-    if (!nickname.trim() || !code) return;
+    if (!nickname || !code) return;
     setIsLoading(true);
     try {
       const res = await authFetch("/api/fish/room/" + encodeURIComponent(code) + "/join", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nickname: nickname.trim() }),
+        body: JSON.stringify({}),
       });
       const data = await res.json();
       if (data.error) {
         alert(data.error);
         return;
       }
-      saveSession(nickname.trim(), data.participantToken, data.room.code, data.room.id);
-      saveRoomToHistory(data.room.code, nickname.trim());
+      saveSession(data.participantToken, data.room.code, data.room.id);
+      saveRoomToHistory(data.room.code, nickname);
       setRoom(data.room);
       setParticipantToken(data.participantToken);
       lastMsgIdRef.current = 0;
@@ -314,6 +375,8 @@ export default function FishPage() {
     setMessages([]);
     setIsChatting(false);
     lastMsgIdRef.current = 0;
+    loadPublicRooms();
+    loadSavedRooms();
   };
 
   const handleFullyLeaveRoom = async () => {
@@ -337,19 +400,22 @@ export default function FishPage() {
     setMessages([]);
     setIsChatting(false);
     lastMsgIdRef.current = 0;
+    loadPublicRooms();
+    loadSavedRooms();
   };
 
-  function saveSession(nick: string, token: string, code: string, roomId: number) {
-    localStorage.setItem(LS_NICKNAME, nick);
-    localStorage.setItem(LS_TOKEN, token);
-    localStorage.setItem(LS_ROOM_CODE, code);
-    localStorage.setItem(LS_ROOM_ID, roomId.toString());
+  function saveSession(token: string, code: string, roomId: number) {
+    const keys = LS_SESSION_KEYS(nickname);
+    localStorage.setItem(keys.token, token);
+    localStorage.setItem(keys.code, code);
+    localStorage.setItem(keys.id, roomId.toString());
   }
 
   function clearSession() {
-    localStorage.removeItem(LS_TOKEN);
-    localStorage.removeItem(LS_ROOM_CODE);
-    localStorage.removeItem(LS_ROOM_ID);
+    const keys = LS_SESSION_KEYS(nickname);
+    localStorage.removeItem(keys.token);
+    localStorage.removeItem(keys.code);
+    localStorage.removeItem(keys.id);
   }
 
   const formatTime = (dateStr: string) => {
@@ -382,46 +448,109 @@ export default function FishPage() {
 
   if (!isChatting) {
     return (
-      <div className="min-h-screen pt-20 pb-8 px-4 flex flex-col items-center justify-center">
-        <div className="w-full max-w-md space-y-6">
+      <div className="min-h-screen pt-20 pb-8 px-4 flex flex-col items-center">
+        <div className="w-full max-w-md sm:max-w-5xl space-y-6">
           {/* Title */}
-          <div className="text-center mb-4">
+          <div className="text-center mb-4 sm:mb-6">
             <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
               <MessageSquare className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-2xl font-bold text-slate-800 dark:text-white mb-1">摸鱼聊天室</h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400">输入昵称，开始聊天</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400">当前身份：<span className="font-semibold text-indigo-500">{nickname}</span>（固定为你的账号）</p>
           </div>
 
-          {/* Nickname input */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+          {/* Public lobby */}
+          <div className="rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-5 space-y-3">
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Globe className="w-3.5 h-3.5 text-emerald-500" />
+              公开大厅
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {publicRooms.map((r) => (
+                <button
+                  key={r.code}
+                  onClick={() => handleEnterSavedRoom(r.code, nickname)}
+                  className="text-left p-3.5 rounded-xl bg-gradient-to-br from-indigo-500/10 to-purple-600/10 border border-white/30 dark:border-white/10 hover:from-indigo-500/20 hover:to-purple-600/20 transition-all group"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-slate-800 dark:text-white">{r.code}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{r.participants.length}/{r.max_participants} 在线</span>
+                  </div>
+                </button>
+              ))}
+              {publicRooms.length === 0 && (
+                <p className="text-xs text-slate-400 dark:text-slate-500 col-span-full">暂无公开房间</p>
+              )}
+            </div>
+          </div>
+
+          {/* Create room panel */}
           <div className="rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-600 dark:text-slate-300 mb-1.5">你的昵称</label>
-              <input
-                type="text"
-                value={nickname}
-                onChange={(e) => setNickname(e.target.value)}
-                placeholder="取个名字吧..."
-                maxLength={10}
-                className="w-full px-4 py-2.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
-              />
+            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+              <Plus className="w-3.5 h-3.5 text-indigo-500" />
+              创建房间
+            </h3>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">可见性</label>
+                <div className="flex rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600">
+                  <button
+                    onClick={() => setCreateIsPublic(false)}
+                    className={`flex-1 py-2 text-sm font-medium transition-all ${!createIsPublic ? "bg-indigo-600 text-white" : "bg-white/40 dark:bg-slate-700/40 text-slate-600 dark:text-slate-300"}`}
+                  >
+                    私密
+                  </button>
+                  <button
+                    onClick={() => setCreateIsPublic(true)}
+                    className={`flex-1 py-2 text-sm font-medium transition-all ${createIsPublic ? "bg-emerald-600 text-white" : "bg-white/40 dark:bg-slate-700/40 text-slate-600 dark:text-slate-300"}`}
+                  >
+                    公开
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs text-slate-500 dark:text-slate-400 mb-1.5">生命周期</label>
+                <div className="flex rounded-xl overflow-hidden border border-slate-200 dark:border-slate-600">
+                  <button
+                    onClick={() => setCreateIsTemp(false)}
+                    className={`flex-1 py-2 text-sm font-medium transition-all ${!createIsTemp ? "bg-indigo-600 text-white" : "bg-white/40 dark:bg-slate-700/40 text-slate-600 dark:text-slate-300"}`}
+                  >
+                    长期
+                  </button>
+                  <button
+                    onClick={() => setCreateIsTemp(true)}
+                    className={`flex-1 py-2 text-sm font-medium transition-all ${createIsTemp ? "bg-amber-600 text-white" : "bg-white/40 dark:bg-slate-700/40 text-slate-600 dark:text-slate-300"}`}
+                  >
+                    临时
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="flex gap-3">
-              <button
-                onClick={handleCreateRoom}
-                disabled={!nickname.trim() || isLoading}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:from-indigo-600 hover:to-purple-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
-              >
-                <Plus className="w-4 h-4" />
-                创建房间
-              </button>
+            <p className="text-xs text-slate-400 dark:text-slate-500 leading-relaxed">
+              {createIsPublic ? "公开房会出现在公开大厅，任何人都能进入。" : "私密房生成随机链接，仅持有链接者可进入。"}
+              {createIsTemp ? " 临时房每日清理一次，人走光即销毁。" : " 长期房持久保留，聊天记录可回看。"}
+            </p>
+
+            <button
+              onClick={handleCreateRoom}
+              disabled={isLoading}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:from-indigo-600 hover:to-purple-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-indigo-500/20"
+            >
+              <Plus className="w-4 h-4" />
+              创建并进入
+            </button>
+
+            <div className="pt-1">
               <button
                 onClick={() => setShowJoin(!showJoin)}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-medium border border-slate-200 dark:border-slate-600 hover:bg-white/70 dark:hover:bg-slate-700 transition-all"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white/50 dark:bg-slate-700/50 text-slate-700 dark:text-slate-200 font-medium border border-slate-200 dark:border-slate-600 hover:bg-white/70 dark:hover:bg-slate-700 transition-all"
               >
                 <ArrowRight className="w-4 h-4" />
-                加入房间
+                用链接加入房间
               </button>
             </div>
 
@@ -433,13 +562,13 @@ export default function FishPage() {
                     type="text"
                     value={joinCode}
                     onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-                    placeholder="例如 FISH01"
-                    maxLength={10}
+                    placeholder="例如 RM_8F3K2A9X"
+                    maxLength={20}
                     className="flex-1 px-4 py-2.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all uppercase"
                   />
                   <button
                     onClick={handleJoinRoom}
-                    disabled={!joinCode.trim() || !nickname.trim() || isLoading}
+                    disabled={!joinCode.trim() || isLoading}
                     className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-green-600 text-white font-medium hover:from-emerald-600 hover:to-green-700 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                   >
                     进入
@@ -449,52 +578,57 @@ export default function FishPage() {
             )}
           </div>
 
-          {/* Tip */}
-          <p className="text-xs text-center text-slate-400 dark:text-slate-500">
-            昵称仅用于显示，无需注册即可聊天
-          </p>
-
           {/* Saved rooms */}
-          {savedRooms.length > 0 && (
-            <div className="rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4">
-              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5" />
-                我的房间
-              </h3>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {savedRooms.map((sr) => (
-                  <div key={sr.code} className="flex items-center justify-between p-2.5 rounded-xl bg-white/50 dark:bg-slate-700/50 hover:bg-white/70 dark:hover:bg-slate-600/50 transition-colors group">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
-                        <MessageSquare className="w-4 h-4 text-white" />
-                      </div>
-                      <div className="min-w-0">
-                        <div className="text-sm font-medium text-slate-800 dark:text-white">{sr.code}</div>
-                        <div className="text-xs text-slate-400">
-                          {roomStatus[sr.code] ? roomStatus[sr.code].count + "/" + roomStatus[sr.code].max + " 人在线" : "加载中..."}
+          </div>
+
+          <div className="lg:col-span-1 space-y-6">
+            {savedRooms.length > 0 && (
+              <div className="rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4">
+                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
+                  <Users className="w-3.5 h-3.5" />
+                  我的房间
+                </h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {savedRooms.map((sr) => (
+                    <div key={sr.code} className="flex items-center justify-between p-2.5 rounded-xl bg-white/50 dark:bg-slate-700/50 hover:bg-white/70 dark:hover:bg-slate-600/50 transition-colors group">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                          <MessageSquare className="w-4 h-4 text-white" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-slate-800 dark:text-white">{sr.code}</div>
+                          <div className="text-xs text-slate-400">
+                            {roomStatus[sr.code] ? roomStatus[sr.code].count + "/" + roomStatus[sr.code].max + " 人在线" : "加载中..."}
+                          </div>
                         </div>
                       </div>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleEnterSavedRoom(sr.code, sr.nickname)}
+                          className="px-3 py-1 text-xs rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:from-indigo-600 hover:to-purple-700 transition-all"
+                        >
+                          进入
+                        </button>
+                        <button
+                          onClick={() => removeRoomFromHistory(sr.code)}
+                          className={
+                            "p-1.5 text-xs rounded-lg transition-all " +
+                            (sr.ownerId === user?.id
+                              ? "text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              : "text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-600/50")
+                          }
+                          title={sr.ownerId === user?.id ? "删除房间" : "退出房间"}
+                        >
+                          {sr.ownerId === user?.id ? "删" : "退"}
+                        </button>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleEnterSavedRoom(sr.code, sr.nickname)}
-                        className="px-3 py-1 text-xs rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white font-medium hover:from-indigo-600 hover:to-purple-700 transition-all opacity-0 group-hover:opacity-100"
-                      >
-                        进入
-                      </button>
-                      <button
-                        onClick={() => removeRoomFromHistory(sr.code)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all opacity-0 group-hover:opacity-100"
-                        title="移除"
-                      >
-                        <span className="text-xs">✕</span>
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
+          </div>
         </div>
       </div>
     );
@@ -503,7 +637,7 @@ export default function FishPage() {
   // Chatting view
   return (
     <div className="h-dvh pt-16 pb-4 px-4 flex flex-col">
-      <div className="flex-1 max-w-3xl mx-auto w-full flex flex-col rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg overflow-hidden">
+      <div className="flex-1 max-w-3xl lg:max-w-5xl mx-auto w-full flex flex-col rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 shadow-lg overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-700 bg-white/50 dark:bg-slate-800/50">
           <div className="flex items-center gap-3">

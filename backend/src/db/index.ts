@@ -41,8 +41,8 @@ export function invalidateCache(pattern?: string): void {
   }
 }
 
-const ROOM_COUNT = 100;
 const MAX_PARTICIPANTS = 10;
+export { MAX_PARTICIPANTS };
 
 export async function getDb(): Promise<Database> {
   if (db) return db;
@@ -132,7 +132,12 @@ export async function getDb(): Promise<Database> {
     "CREATE TABLE IF NOT EXISTS fish_rooms (" +
     "  id INTEGER PRIMARY KEY AUTOINCREMENT," +
     "  code TEXT UNIQUE NOT NULL," +
+    "  owner_id INTEGER," +
+    "  room_type TEXT NOT NULL DEFAULT 'private'," +
+    "  lifecycle TEXT NOT NULL DEFAULT 'permanent'," +
+    "  is_public INTEGER NOT NULL DEFAULT 0," +
     "  max_participants INTEGER DEFAULT 10," +
+    "  destroyed_at DATETIME," +
     "  created_at DATETIME DEFAULT CURRENT_TIMESTAMP" +
     ");" +
     "CREATE TABLE IF NOT EXISTS fish_room_participants (" +
@@ -185,6 +190,11 @@ export async function getDb(): Promise<Database> {
   ensureCol("users", "updated_at", "DATETIME DEFAULT CURRENT_TIMESTAMP");
   ensureCol("fish_room_participants", "token", "TEXT");
   ensureCol("fish_room_participants", "last_active", "DATETIME DEFAULT CURRENT_TIMESTAMP");
+  ensureCol("fish_rooms", "owner_id", "INTEGER");
+  ensureCol("fish_rooms", "room_type", "TEXT NOT NULL DEFAULT 'private'");
+  ensureCol("fish_rooms", "lifecycle", "TEXT NOT NULL DEFAULT 'permanent'");
+  ensureCol("fish_rooms", "is_public", "INTEGER NOT NULL DEFAULT 0");
+  ensureCol("fish_rooms", "destroyed_at", "DATETIME");
   try { db!.run("UPDATE fish_room_participants SET token = 'legacy_' || id WHERE token IS NULL"); } catch {}
   try { db!.run("ALTER TABLE fish_rooms DROP COLUMN participant1_nickname"); } catch {}
   try { db!.run("ALTER TABLE fish_rooms DROP COLUMN participant2_nickname"); } catch {}
@@ -207,15 +217,8 @@ export async function getDb(): Promise<Database> {
     "CREATE INDEX IF NOT EXISTS idx_game_farm_user           ON game_farm_states(user_id);"
   );
 
-  // ---- fish 房间初始化：只补不足，不 DELETE（避免清掉消息外键）----
-  const existingResult = db.exec("SELECT COUNT(*) FROM fish_rooms");
-  const existingCount = Number(existingResult[0]?.values?.[0]?.[0] || 0);
-  if (existingCount < ROOM_COUNT) {
-    for (let i = 0; i < ROOM_COUNT; i++) {
-      const code = "FISH" + String(i).padStart(2, "0");
-      db!.run("INSERT OR IGNORE INTO fish_rooms (code, max_participants) VALUES (?, ?)", [code, MAX_PARTICIPANTS]);
-    }
-  }
+  // ---- 旧的固定 FISHxx 房间不再预创建（已由 RoomPool 资源池动态管理）----
+  // 公开大厅房由 backend/src/services/roomPool.ts 的 ensurePublicRooms() 在启动时初始化。
 
   return db;
 }

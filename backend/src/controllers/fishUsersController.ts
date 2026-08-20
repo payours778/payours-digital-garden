@@ -2,8 +2,8 @@ import { Request, Response } from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { getDb, saveDb } from '../db';
+import { JWT_SECRET } from '../auth';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'fish-secret-key';
 const JWT_EXPIRES_IN = '7d';
 
 export async function register(req: Request, res: Response) {
@@ -39,7 +39,7 @@ export async function register(req: Request, res: Response) {
     await saveDb();
 
     const userId = db.exec('SELECT last_insert_rowid()')[0].values[0][0];
-    const token = jwt.sign({ userId, username }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const token = jwt.sign({ id: userId, username, role: 'user' }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
     res.status(200).json({
       success: true,
@@ -79,7 +79,7 @@ export async function login(req: Request, res: Response) {
       return res.status(401).json({ error: '账号或密码错误' });
     }
 
-    const token = jwt.sign({ userId: user[0], username: user[1] }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    const token = jwt.sign({ id: user[0], username: user[1], role: 'user' }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
 
     res.status(200).json({
       success: true,

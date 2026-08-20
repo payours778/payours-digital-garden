@@ -15,7 +15,6 @@ const initSqlJs = require(path.join(BACKEND_NODE_MODULES, 'sql.js'));
 const bcrypt = require(path.join(BACKEND_NODE_MODULES, 'bcryptjs'));
 
 const DB_FILE = path.resolve(__dirname, 'blog.db');
-const ROOM_COUNT = 100;
 const ADMIN_PHONE = '13512333216';
 
 const NOW_BJ = () => new Date(Date.now() + 8 * 3600e3).toISOString().replace('T', ' ').slice(0, 19);
@@ -48,7 +47,7 @@ async function main() {
     "CREATE TABLE IF NOT EXISTS photos_new (id INTEGER PRIMARY KEY AUTOINCREMENT, album_id INTEGER NOT NULL, url TEXT NOT NULL, caption TEXT DEFAULT '', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
     "CREATE TABLE IF NOT EXISTS projects (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, description TEXT DEFAULT '', tech TEXT DEFAULT '[]', link TEXT DEFAULT '', stars INTEGER DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
     "CREATE TABLE IF NOT EXISTS music (id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL, artist TEXT, url TEXT NOT NULL, cover TEXT, duration TEXT DEFAULT '00:00', created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
-    "CREATE TABLE IF NOT EXISTS fish_rooms (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, max_participants INTEGER DEFAULT 10, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
+    "CREATE TABLE IF NOT EXISTS fish_rooms (id INTEGER PRIMARY KEY AUTOINCREMENT, code TEXT UNIQUE NOT NULL, owner_id INTEGER, room_type TEXT NOT NULL DEFAULT 'private', lifecycle TEXT NOT NULL DEFAULT 'permanent', is_public INTEGER NOT NULL DEFAULT 0, max_participants INTEGER DEFAULT 10, destroyed_at DATETIME, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
     "CREATE TABLE IF NOT EXISTS fish_room_participants (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id INTEGER, token TEXT, nickname TEXT NOT NULL, joined_at DATETIME DEFAULT CURRENT_TIMESTAMP, last_active DATETIME DEFAULT CURRENT_TIMESTAMP)",
     "CREATE TABLE IF NOT EXISTS fish_messages (id INTEGER PRIMARY KEY AUTOINCREMENT, room_id INTEGER, sender_nickname TEXT, content TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP)",
   ];
@@ -68,6 +67,11 @@ async function main() {
   addIfMissing('essays', 'created_at', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
   addIfMissing('fish_room_participants', 'token', 'TEXT');
   addIfMissing('fish_room_participants', 'last_active', 'DATETIME DEFAULT CURRENT_TIMESTAMP');
+  addIfMissing('fish_rooms', 'owner_id', 'INTEGER');
+  addIfMissing('fish_rooms', 'room_type', "TEXT NOT NULL DEFAULT 'private'");
+  addIfMissing('fish_rooms', 'lifecycle', "TEXT NOT NULL DEFAULT 'permanent'");
+  addIfMissing('fish_rooms', 'is_public', 'INTEGER NOT NULL DEFAULT 0');
+  addIfMissing('fish_rooms', 'destroyed_at', 'DATETIME');
   try { db.run("UPDATE fish_room_participants SET token = 'legacy_' || id WHERE token IS NULL"); } catch {}
 
   // ---- 4) 重建 users / albums / photos（解决列名/约束不匹配 + 老库密码明文的问题）----
@@ -175,17 +179,10 @@ async function main() {
   for (const [name, on] of indexes) db.run(`CREATE INDEX IF NOT EXISTS ${name} ON ${on}`);
   console.log('[Migrate] Indexes ensured:', indexes.length);
 
-  // ---- 6) fish 房间补齐（100 个）----
+  // ---- 6) fish 房间：旧的固定 FISHxx 房间不再预创建（已由 RoomPool 资源池动态管理）----
+  // 公开大厅房由 backend/src/services/roomPool.ts 的 ensurePublicRooms() 在启动时初始化。
   const existing = Number(db.exec('SELECT COUNT(*) FROM fish_rooms')[0].values[0][0]);
-  let added = 0;
-  if (existing < ROOM_COUNT) {
-    const stmt = db.prepare('INSERT OR IGNORE INTO fish_rooms (code, max_participants) VALUES (?, 10)');
-    for (let i = 0; i < ROOM_COUNT; i++) {
-      const info = stmt.run('FISH' + String(i).padStart(2, '0'));
-      added += Number(info.getRowsModified() || 0);
-    }
-  }
-  console.log(`[Migrate] Fish rooms: existing=${existing}, added=${added}`);
+  console.log(`[Migrate] Fish rooms: existing=${existing} (no longer auto-provisioned)`);
 
   // ---- 7) 校验 + 写回 ----
   const printStats = () => {

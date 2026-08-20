@@ -1,5 +1,6 @@
 // 鉴权模块统一出口
 // 未来要抽成独立服务时，整个 auth/ 目录搬走即可
+export const JWT_SECRET = process.env.JWT_SECRET || 'fish-secret-key';
 export { requireAuth, requireAdmin } from './middleware';
 export { default as usersRouter } from './users';
 export type { UserRow, SafeUser, JwtPayload } from './types';

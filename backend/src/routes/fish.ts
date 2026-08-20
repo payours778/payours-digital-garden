@@ -9,6 +9,9 @@ import {
   getRoomsList,
   leaveRoom,
   getParticipantInfo,
+  listPublicRooms,
+  getMyRooms,
+  deleteRoom,
 } from '../controllers/fishController';
 import { requireAuth } from '../auth';
 
@@ -21,7 +24,10 @@ router.get('/room/:code/full', requireAuth, getRoomByCodeFull);
 router.post('/room/:roomId/messages', requireAuth, sendMessage);
 router.get('/room/:roomId/messages', requireAuth, getMessages);
 router.post('/room/:roomId/leave', requireAuth, leaveRoom);
+router.delete('/room/:roomId', requireAuth, deleteRoom);
 router.get('/rooms', requireAuth, getRoomsList);
+router.get('/rooms/public', requireAuth, listPublicRooms);
+router.get('/my-rooms', requireAuth, getMyRooms);
 router.get('/participant', requireAuth, getParticipantInfo);
 
 export default router;
