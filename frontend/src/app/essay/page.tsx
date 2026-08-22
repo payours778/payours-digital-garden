@@ -83,10 +83,20 @@ const essayCss = `
 .mk-featured{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:center;padding:8px 0 12px}
 .mk-art{position:relative;min-height:340px;border-radius:8px;overflow:hidden;background:#0b2433;box-shadow:0 30px 60px -30px rgba(0,0,0,.5)}
 .mk-art img.cov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
-.mk-art .fade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.5),transparent 55%)}
-.mk-art .num{position:absolute;top:20px;left:22px;font-family:var(--sans);font-weight:800;font-size:13px;letter-spacing:.2em;color:rgba(255,255,255,.7);z-index:2}
+.mk-art .fade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,rgba(0,0,0,.35) 35%,transparent 70%);z-index:1}
+.mk-art .num{position:absolute;top:20px;left:22px;font-family:var(--sans);font-weight:800;font-size:13px;letter-spacing:.2em;color:rgba(255,255,255,.85);z-index:3}
 .mk-art .big{position:absolute;inset:0;display:grid;place-items:center;font-family:"Noto Serif SC","Source Han Serif SC",serif;font-size:clamp(140px,20vw,250px);font-weight:800;color:rgba(255,255,255,.16)}
-.mk-art .cap{position:absolute;bottom:20px;left:22px;right:22px;color:rgba(255,255,255,.85);font-family:var(--sans);font-size:12px;letter-spacing:.16em;z-index:2}
+.mk-art .cap{position:absolute;bottom:64px;left:22px;right:22px;color:rgba(255,255,255,.85);font-family:var(--sans);font-size:12px;letter-spacing:.16em;z-index:3;text-align:right}
+.mk-art .mk-art-text{position:absolute;left:22px;right:22px;bottom:22px;z-index:2;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.45)}
+.mk-art .mk-art-text .title{font-family:"Noto Serif SC","Source Han Serif SC",serif;font-size:22px;font-weight:800;line-height:1.2;margin-bottom:6px}
+.mk-art .mk-art-text .excerpt{font-size:12.5px;line-height:1.6;opacity:.88;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+
+@keyframes mk-img-in{from{opacity:0;transform:scale(1.04)}to{opacity:1;transform:scale(1)}}
+@keyframes mk-img-out{from{opacity:1;transform:scale(1)}to{opacity:0;transform:scale(1.04)}}
+.mk-art img.cov.img-in{animation:mk-img-in .45s ease-out both}
+.mk-art img.cov.img-out{animation:mk-img-out .45s ease-in both}
+.mk-art .mk-art-text.img-in{animation:mk-img-in .45s ease-out both}
+.mk-art .mk-art-text.img-out{animation:mk-img-out .45s ease-in both}
 .mk-lab{display:flex;align-items:baseline;justify-content:space-between;margin:46px 0 22px}
 .mk-lab h2{font-family:"Noto Serif SC",serif;font-size:22px;font-weight:800;color:var(--mag-ink)}
 .mk-lab span{font-family:var(--sans);font-size:12px;letter-spacing:.3em;color:var(--mag-ink-faint)}
@@ -127,6 +137,8 @@ export default function EssayPage() {
   const { user, loading } = useAuth();
   const [toast, setToast] = useState<string | null>(null);
   const [fading, setFading] = useState(false);
+  const [featuredIdx, setFeaturedIdx] = useState(0);
+  const [imgFading, setImgFading] = useState(false);
 
   useEffect(() => {
     if (!toast) return;
@@ -135,6 +147,18 @@ export default function EssayPage() {
     const rmT = setTimeout(() => { setToast(null); setFading(false); }, 2200);
     return () => { clearTimeout(outT); clearTimeout(rmT); };
   }, [toast]);
+
+  useEffect(() => {
+    if (essays.length <= 1) return;
+    const id = setInterval(() => {
+      setImgFading(true);
+      setTimeout(() => {
+        setFeaturedIdx((i) => (i + 1) % essays.length);
+        setImgFading(false);
+      }, 450);
+    }, 4000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!loading && !user) {
@@ -162,10 +186,12 @@ export default function EssayPage() {
           <div>
             <div className="mk-kicker">Essay Journal · 浮生手记</div>
             <h1 className="mk-headline mt-5">
-              我有一个<span className="hl">文青梦</span>
+              我有一个
+              <br />
+              <span className="hl">文青梦</span>
             </h1>
             <p className="mk-lead">
-              四十六篇浮生手记，写海、写山、写故乡与母亲的围巾。这期主打《渔》——渝北去过两次，一次是去钓鱼，另一次还是去钓鱼。
+              几年里偶尔写下的几段，多数是写给自己看的，留在这里只是因为——也许多年以后，谁又会坐在炉子旁，想起来这些，又会成为谁茶余饭后的谈笑。
             </p>
             <div className="mk-meta">
               <span><b>{essays.length}</b> 篇</span>
@@ -177,10 +203,24 @@ export default function EssayPage() {
             </Link>
           </div>
           <div className="mk-art">
-            <img src={featured.image} alt={featured.title} className="cov" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+            <img
+              key={essays[featuredIdx].id}
+              src={essays[featuredIdx].image}
+              alt={essays[featuredIdx].title}
+              className={`cov ${imgFading ? "img-out" : "img-in"}`}
+              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+            />
             <span className="fade" />
-            <span className="num">NO.01</span>
-            <span className="cap">{fmtDate(featured.date)} · 海</span>
+            <span className="num">
+              NO.{(featuredIdx + 1).toString().padStart(2, "0")}
+            </span>
+            <span className="cap">
+              {fmtDate(essays[featuredIdx].date)} · {essays[featuredIdx].title}
+            </span>
+            <div className={`mk-art-text ${imgFading ? "img-out" : "img-in"}`}>
+              <h3 className="title">{essays[featuredIdx].title}</h3>
+              <p className="excerpt">{essays[featuredIdx].excerpt}</p>
+            </div>
           </div>
         </div>
 
