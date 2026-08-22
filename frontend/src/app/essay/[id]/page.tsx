@@ -601,7 +601,7 @@ export default function EssayDetail({ params }: { params: Promise<{ id: string }
           </div>
         </div>
 
-        <div className="bg-white/60 dark:bg-slate-800/60 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border border-white/30 dark:border-slate-700/50">
+        <div className="bg-white/95 dark:bg-slate-800/95 backdrop-blur-xl rounded-2xl p-6 sm:p-8 border border-slate-200 dark:border-slate-700 shadow-sm">
           <article className="prose prose-slate dark:prose-invert max-w-none">
             {essay.content.split("\n").map((paragraph, index) => (
               <p key={index} className="mb-4 leading-relaxed text-slate-700 dark:text-slate-300">
@@ -615,9 +615,9 @@ export default function EssayDetail({ params }: { params: Promise<{ id: string }
           <Link
             href="/essay"
             className={cn(
-              "flex items-center px-6 py-3 bg-white dark:bg-slate-700 rounded-xl",
+              "flex items-center px-6 py-3 bg-white dark:bg-slate-800 rounded-xl",
               "text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400",
-              "border border-white/50 dark:border-slate-600/50",
+              "border border-slate-200 dark:border-slate-700",
               "transition-all duration-300 hover:shadow-lg"
             )}
           >
