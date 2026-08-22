@@ -39,8 +39,9 @@ export function EssayCarousel() {
   }, [next, isPaused]);
 
   return (
-    <article
-      className="group relative rounded-2xl surface-card backdrop-blur-xl border border-theme shadow-sm p-5 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden min-h-[200px]"
+    <Link
+      href={`/essay/${essays[current].id}`}
+      className="group relative block rounded-2xl surface-card backdrop-blur-xl border border-theme shadow-sm p-5 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all duration-300 overflow-hidden min-h-[200px]"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -80,18 +81,16 @@ export function EssayCarousel() {
               </span>
             </div>
 
-            <Link href={`/essay/${essay.id}`}>
-              <h3 className="inline font-bold text-white group-hover:text-indigo-200 transition-colors text-sm leading-snug bg-black/30 px-1.5 py-0.5 rounded [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">
-                {essay.title}
-              </h3>
-              <p className="text-xs text-white/90 mt-2 line-clamp-3 leading-relaxed bg-black/25 px-1.5 py-0.5 [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">
-                {essay.excerpt}
-              </p>
-              <div className="flex items-center gap-3 mt-3 text-[11px] text-white/80">
-                <span className="bg-black/30 px-1.5 py-0.5 rounded">📅 {essay.date}</span>
-                <span className="ml-auto bg-indigo-500/40 text-white px-1.5 py-0.5 rounded font-medium">阅读 →</span>
-              </div>
-            </Link>
+            <h3 className="inline font-bold text-white group-hover:text-indigo-200 transition-colors text-sm leading-snug bg-black/30 px-1.5 py-0.5 rounded [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">
+              {essay.title}
+            </h3>
+            <p className="text-xs text-white/90 mt-2 line-clamp-3 leading-relaxed bg-black/25 px-1.5 py-0.5 [box-decoration-break:clone] [-webkit-box-decoration-break:clone]">
+              {essay.excerpt}
+            </p>
+            <div className="flex items-center gap-3 mt-3 text-[11px] text-white/80">
+              <span className="bg-black/30 px-1.5 py-0.5 rounded">📅 {essay.date}</span>
+              <span className="ml-auto bg-indigo-500/40 text-white px-1.5 py-0.5 rounded font-medium">阅读 →</span>
+            </div>
           </div>
         ))}
       </div>
@@ -103,6 +102,7 @@ export function EssayCarousel() {
             key={i}
             onClick={(e) => {
               e.preventDefault();
+              e.stopPropagation();
               setCurrent(i);
             }}
             className={`h-1 rounded-full transition-all duration-300 ${
@@ -114,6 +114,6 @@ export function EssayCarousel() {
           />
         ))}
       </div>
-    </article>
+    </Link>
   );
 }
