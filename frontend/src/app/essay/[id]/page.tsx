@@ -1,8 +1,10 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Essay {
   id: number;
@@ -542,6 +544,23 @@ const essays: Essay[] = [
 
 export default function EssayDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
+  const router = useRouter();
+  const { user, loading } = useAuth();
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.replace(`/login?redirect=/essay/${id}`);
+    }
+  }, [loading, user, router, id]);
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen pt-24 pb-12 px-4 flex items-center justify-center">
+        <p className="text-slate-500">加载中...</p>
+      </div>
+    );
+  }
+
   const essay = essays.find((e) => e.id === parseInt(id));
 
   if (!essay) {
