@@ -23,6 +23,10 @@ database/*.sqlite
 .env.local
 .env.*.local
 
+# 本地 docker compose（含数据库密码，禁止上传）
+mysql/
+mysql/data/
+
 # 日志
 *.log
 npm-debug.log*

@@ -123,50 +123,8 @@ Show-Progress 3 $totalSteps "SCP upload"
 
 cd $ROOT
 Write-Host "  [3/4] Create remote dirs..." -ForegroundColor $C_STEP
-ssh $SERVER "mkdir -p /var/www/blog/frontend /var/www/blog/backend /var/www/blog/database" 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
+ssh $SERVER "mkdir -p /var/www/blog/frontend /var/www/blog/backend" 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
 Write-Host "  [OK] remote dirs ready" -ForegroundColor $C_OK
-
-# --- Check if server DB exists; if not, bootstrap from latest local backup ---
-Write-Host ""
-Write-Host "  [3/4] Check server database..." -ForegroundColor $C_STEP
-$dbExists = ssh $SERVER "test -f /var/www/blog/database/blog.db && echo EXISTS || echo MISSING" 2>&1 | Select-Object -Last 1
-if ($dbExists -eq "EXISTS") {
-    Write-Host "  [OK] Server database already exists, keeping server data" -ForegroundColor $C_OK
-} else {
-    Write-Host "  [i] No database on server (first deploy)" -ForegroundColor $C_WARN
-    $BACKUP_DIR = Join-Path $ROOT "database\backups"
-    $LOCAL_DB   = Join-Path $ROOT "database\blog.db"
-    $seedFile = $null
-    # 1) prefer latest backup in database/backups/
-    if (Test-Path $BACKUP_DIR) {
-        $latest = Get-ChildItem -Path $BACKUP_DIR -Filter "blog-*.db" -ErrorAction SilentlyContinue |
-            Sort-Object LastWriteTime -Descending | Select-Object -First 1
-        if ($latest) { $seedFile = $latest.FullName }
-    }
-    # 2) fallback to local dev database/blog.db
-    if (-not $seedFile -and (Test-Path $LOCAL_DB)) {
-        $seedFile = $LOCAL_DB
-    }
-    if ($seedFile) {
-        $seedName = Split-Path $seedFile -Leaf
-        $seedSizeMB = [math]::Round((Get-Item $seedFile).Length / 1MB, 2)
-        Write-Host "  [i] Seeding with: $seedName ($seedSizeMB MB)" -ForegroundColor $C_DIM
-        Write-Host "  [i] Uploading as blog.db (generic name) to server..." -ForegroundColor $C_DIM
-        scp $seedFile "${SERVER}:/var/www/blog/database/blog.db" 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
-        if ($LASTEXITCODE -eq 0) {
-            $verifySize = ssh $SERVER "stat -c %s /var/www/blog/database/blog.db 2>/dev/null || stat -f %z /var/www/blog/database/blog.db 2>/dev/null" 2>&1 | Select-Object -Last 1
-            if ([math]::Abs([int64]$verifySize - (Get-Item $seedFile).Length) -gt 4096) {
-                Write-Host "  [!] Warning: size mismatch after upload, will run db:init as fallback later" -ForegroundColor $C_WARN
-            } else {
-                Write-Host "  [OK] Database bootstrapped on server (blog.db, $seedSizeMB MB)" -ForegroundColor $C_OK
-            }
-        } else {
-            Write-Host "  [!] DB upload failed, will run db:init to create empty DB later" -ForegroundColor $C_WARN
-        }
-    } else {
-        Write-Host "  [!] No local backup or dev DB found. Will run db:init to create empty DB" -ForegroundColor $C_WARN
-    }
-}
 
 Write-Host ""
 Write-Host "  [3/4] Upload packages..." -ForegroundColor $C_STEP
@@ -203,12 +161,12 @@ cd frontend && npm install --omit=dev && cd ..
 echo "===== install backend deps ====="
 cd backend && npm install --omit=dev && cd ..
 
-echo "===== ensure database ====="
-if [ ! -f /var/www/blog/database/blog.db ]; then
-  echo "blog.db missing, running db:init to create empty DB"
+echo "===== ensure MySQL schema (if .env present) ====="
+if [ -f /var/www/blog/backend/.env ]; then
+  echo ".env found, running db:init to ensure MySQL tables"
   cd /var/www/blog/backend && npm run db:init && cd /var/www/blog
 else
-  echo "blog.db exists, skip db:init"
+  echo "WARN: /var/www/blog/backend/.env missing, backend may fail to connect MySQL"
 fi
 
 echo "===== restart services ====="
