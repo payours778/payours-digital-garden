@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import getDb, { saveDb } from '../db';
+import getDb from '../db';
 import type { UserRow, SafeUser, JwtPayload } from './types';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-me';
@@ -53,13 +53,13 @@ export const register = async (req: Request, res: Response) => {
 
     const db = await getDb();
 
-    const existing = db.exec('SELECT id FROM users WHERE username = ?', [username]);
+    const existing = await db.exec('SELECT id FROM users WHERE username = ?', [username]);
     if (existing[0]?.values?.length) {
       return res.status(409).json({ error: '用户名已存在' });
     }
 
     if (phone) {
-      const phoneExisting = db.exec('SELECT id FROM users WHERE phone = ?', [phone]);
+      const phoneExisting = await db.exec('SELECT id FROM users WHERE phone = ?', [phone]);
       if (phoneExisting[0]?.values?.length) {
         return res.status(409).json({ error: '手机号已被注册' });
       }
@@ -68,22 +68,21 @@ export const register = async (req: Request, res: Response) => {
     const passwordHash = await bcrypt.hash(password, 10);
     const now = nowBeijing();
 
-    db.run(
+    await db.run(
       'INSERT INTO users (username, password_hash, phone, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
       [username, passwordHash, phone || null, 'user', now, now]
     );
 
-    const maxIdResult = db.exec('SELECT MAX(id) FROM users');
+    const maxIdResult = await db.exec('SELECT MAX(id) FROM users');
     const lastId = maxIdResult[0]?.values?.[0]?.[0] as number;
 
-    const queryResult = db.exec('SELECT * FROM users WHERE id = ?', [lastId]);
+    const queryResult = await db.exec('SELECT * FROM users WHERE id = ?', [lastId]);
     const row = queryResult[0]?.values?.[0];
     if (!row) {
       return res.status(500).json({ error: '注册失败' });
     }
 
     const user = parseUser(row);
-    await saveDb();
 
     const token = generateToken(user);
     res.status(201).json({ user: toSafeUser(user), token });
@@ -103,7 +102,7 @@ export const login = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const result = db.exec('SELECT * FROM users WHERE username = ?', [username]);
+    const result = await db.exec('SELECT * FROM users WHERE username = ?', [username]);
     const row = result[0]?.values?.[0];
 
     if (!row) {
@@ -132,7 +131,7 @@ export const me = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const result = db.exec('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    const result = await db.exec('SELECT * FROM users WHERE id = ?', [req.user.id]);
     const row = result[0]?.values?.[0];
 
     if (!row) {
@@ -164,7 +163,7 @@ export const updatePassword = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const result = db.exec('SELECT id, password_hash FROM users WHERE id = ?', [req.user.id]);
+    const result = await db.exec('SELECT id, password_hash FROM users WHERE id = ?', [req.user.id]);
     const row = result[0]?.values?.[0];
     if (!row) return res.status(404).json({ error: '用户不存在' });
 
@@ -175,8 +174,7 @@ export const updatePassword = async (req: Request, res: Response) => {
     }
 
     const newHash = await bcrypt.hash(newPassword, 10);
-    db.run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [newHash, nowBeijing(), req.user.id]);
-    await saveDb();
+    await db.run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', [newHash, nowBeijing(), req.user.id]);
 
     res.json({ message: '密码修改成功' });
   } catch (error) {
@@ -198,15 +196,14 @@ export const updatePhone = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const existing = db.exec('SELECT id FROM users WHERE phone = ? AND id != ?', [phone, req.user.id]);
+    const existing = await db.exec('SELECT id FROM users WHERE phone = ? AND id != ?', [phone, req.user.id]);
     if (existing[0]?.values?.length) {
       return res.status(409).json({ error: '该手机号已被其他账号绑定' });
     }
 
-    db.run('UPDATE users SET phone = ?, updated_at = ? WHERE id = ?', [phone, nowBeijing(), req.user.id]);
-    await saveDb();
+    await db.run('UPDATE users SET phone = ?, updated_at = ? WHERE id = ?', [phone, nowBeijing(), req.user.id]);
 
-    const refreshed = db.exec('SELECT * FROM users WHERE id = ?', [req.user.id]);
+    const refreshed = await db.exec('SELECT * FROM users WHERE id = ?', [req.user.id]);
     const row = refreshed[0]?.values?.[0];
     res.json({ message: '手机号修改成功', user: toSafeUser(parseUser(row)) });
   } catch (error) {
@@ -225,7 +222,7 @@ export const closeAccount = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const result = db.exec('SELECT id, password_hash, role FROM users WHERE id = ?', [req.user.id]);
+    const result = await db.exec('SELECT id, password_hash, role FROM users WHERE id = ?', [req.user.id]);
     const row = result[0]?.values?.[0];
     if (!row) return res.status(404).json({ error: '用户不存在' });
 
@@ -240,8 +237,7 @@ export const closeAccount = async (req: Request, res: Response) => {
       return res.status(401).json({ error: '密码错误' });
     }
 
-    db.run('DELETE FROM users WHERE id = ?', [req.user.id]);
-    await saveDb();
+    await db.run('DELETE FROM users WHERE id = ?', [req.user.id]);
 
     res.json({ message: '账户已注销' });
   } catch (error) {

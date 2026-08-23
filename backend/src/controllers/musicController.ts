@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import getDb, { saveDb } from '../db';
+import getDb from '../db';
 import { CreateMusicRequest, UpdateMusicRequest } from '../models';
 
 const parseRow = (row: any[]) => ({
@@ -16,7 +16,7 @@ const parseRow = (row: any[]) => ({
 export const getMusicList = async (req: Request, res: Response) => {
   try {
     const db = await getDb();
-    const result = db.exec('SELECT * FROM music ORDER BY created_at DESC');
+    const result = await db.exec('SELECT * FROM music ORDER BY created_at DESC');
     const music = result[0]?.values?.map(parseRow) || [];
     res.json({ music, total: music.length });
   } catch (error) {
@@ -30,7 +30,7 @@ export const getMusicById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const result = db.exec('SELECT * FROM music WHERE id = ?', [Number(id)]);
+    const result = await db.exec('SELECT * FROM music WHERE id = ?', [Number(id)]);
     const rows = result[0]?.values;
 
     if (!rows || rows.length === 0) {
@@ -54,22 +54,21 @@ export const createMusic = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    db.run(
+    await db.run(
       'INSERT INTO music (title, artist, url, cover, duration) VALUES (?, ?, ?, ?, ?)',
       [title, artist || '', url, cover || '', duration || '00:00']
     );
 
-    const maxIdResult = db.exec('SELECT MAX(id) FROM music');
+    const maxIdResult = await db.exec('SELECT MAX(id) FROM music');
     const lastId = maxIdResult[0]?.values?.[0]?.[0];
 
     if (!lastId) {
       return res.status(500).json({ error: '创建音乐失败' });
     }
 
-    const queryResult = db.exec('SELECT * FROM music WHERE id = ?', [lastId]);
+    const queryResult = await db.exec('SELECT * FROM music WHERE id = ?', [lastId]);
     const row = queryResult[0]?.values?.[0];
 
-    await saveDb();
     res.status(201).json({ music: parseRow(row!) });
   } catch (error) {
     console.error('创建音乐失败:', error);
@@ -84,7 +83,7 @@ export const updateMusic = async (req: Request, res: Response) => {
     const { title, artist, url, cover, duration } = req.body as UpdateMusicRequest;
 
     const db = await getDb();
-    const existingResult = db.exec('SELECT * FROM music WHERE id = ?', [Number(id)]);
+    const existingResult = await db.exec('SELECT * FROM music WHERE id = ?', [Number(id)]);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '音乐不存在' });
@@ -104,10 +103,9 @@ export const updateMusic = async (req: Request, res: Response) => {
     }
 
     values.push(Number(id));
-    db.run(`UPDATE music SET ${fields.join(', ')} WHERE id = ?`, values);
-    await saveDb();
+    await db.run(`UPDATE music SET ${fields.join(', ')} WHERE id = ?`, values);
 
-    const updatedResult = db.exec('SELECT * FROM music WHERE id = ?', [Number(id)]);
+    const updatedResult = await db.exec('SELECT * FROM music WHERE id = ?', [Number(id)]);
     const row = updatedResult[0]?.values?.[0];
 
     res.json({ music: parseRow(row!) });
@@ -122,14 +120,13 @@ export const deleteMusic = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const existingResult = db.exec('SELECT * FROM music WHERE id = ?', [Number(id)]);
+    const existingResult = await db.exec('SELECT * FROM music WHERE id = ?', [Number(id)]);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '音乐不存在' });
     }
 
-    db.run('DELETE FROM music WHERE id = ?', [Number(id)]);
-    await saveDb();
+    await db.run('DELETE FROM music WHERE id = ?', [Number(id)]);
     res.json({ message: '删除成功' });
   } catch (error) {
     console.error('删除音乐失败:', error);

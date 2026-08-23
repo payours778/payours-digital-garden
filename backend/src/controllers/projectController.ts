@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import getDb, { saveDb } from '../db';
+import getDb from '../db';
 import { CreateProjectRequest, UpdateProjectRequest } from '../models';
 
 const parseRow = (row: any[]) => ({
@@ -44,7 +44,7 @@ export const getProjects = async (req: Request, res: Response) => {
     const orderClause = order === 'asc' ? 'ASC' : 'DESC';
     sql += ` ORDER BY ${sortField} ${orderClause}`;
 
-    const result = db.exec(sql, params);
+    const result = await db.exec(sql, params);
     const projects = result[0]?.values?.map(parseRow) || [];
     res.json({ projects, total: projects.length });
   } catch (error) {
@@ -58,7 +58,7 @@ export const getProjectById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const result = db.exec('SELECT * FROM projects WHERE id = ?', [Number(id)]);
+    const result = await db.exec('SELECT * FROM projects WHERE id = ?', [Number(id)]);
     const rows = result[0]?.values;
 
     if (!rows || rows.length === 0) {
@@ -85,26 +85,25 @@ export const createProject = async (req: Request, res: Response) => {
     const techJson = JSON.stringify(tech || []);
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
-    db.run(
+    await db.run(
       'INSERT INTO projects (name, description, tech, link, stars, created_at) VALUES (?, ?, ?, ?, ?, ?)',
       [name.trim(), description || '', techJson, link || '', stars || 0, now]
     );
 
-    const maxIdResult = db.exec('SELECT MAX(id) FROM projects');
+    const maxIdResult = await db.exec('SELECT MAX(id) FROM projects');
     const lastId = maxIdResult[0]?.values?.[0]?.[0];
 
     if (!lastId) {
       return res.status(500).json({ error: '创建项目失败' });
     }
 
-    const queryResult = db.exec('SELECT * FROM projects WHERE id = ?', [lastId]);
+    const queryResult = await db.exec('SELECT * FROM projects WHERE id = ?', [lastId]);
     const row = queryResult[0]?.values?.[0];
 
     if (!row) {
       return res.status(500).json({ error: '创建项目失败' });
     }
 
-    await saveDb();
     res.status(201).json({ project: parseRow(row) });
   } catch (error) {
     console.error('创建项目失败:', error);
@@ -119,7 +118,7 @@ export const updateProject = async (req: Request, res: Response) => {
     const { name, description, tech, link, stars } = req.body as UpdateProjectRequest;
 
     const db = await getDb();
-    const existingResult = db.exec('SELECT * FROM projects WHERE id = ?', [Number(id)]);
+    const existingResult = await db.exec('SELECT * FROM projects WHERE id = ?', [Number(id)]);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '项目不存在' });
@@ -136,11 +135,10 @@ export const updateProject = async (req: Request, res: Response) => {
 
     if (fields.length > 0) {
       values.push(Number(id));
-      db.run(`UPDATE projects SET ${fields.join(', ')} WHERE id = ?`, values);
-      await saveDb();
+      await db.run(`UPDATE projects SET ${fields.join(', ')} WHERE id = ?`, values);
     }
 
-    const updatedResult = db.exec('SELECT * FROM projects WHERE id = ?', [Number(id)]);
+    const updatedResult = await db.exec('SELECT * FROM projects WHERE id = ?', [Number(id)]);
     const row = updatedResult[0]?.values?.[0];
 
     res.json({ project: parseRow(row!) });
@@ -155,14 +153,13 @@ export const deleteProject = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const existingResult = db.exec('SELECT * FROM projects WHERE id = ?', [Number(id)]);
+    const existingResult = await db.exec('SELECT * FROM projects WHERE id = ?', [Number(id)]);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '项目不存在' });
     }
 
-    db.run('DELETE FROM projects WHERE id = ?', [Number(id)]);
-    await saveDb();
+    await db.run('DELETE FROM projects WHERE id = ?', [Number(id)]);
     res.json({ message: '删除成功' });
   } catch (error) {
     console.error('删除项目失败:', error);
@@ -176,15 +173,15 @@ export const getProjectStats = async (req: Request, res: Response) => {
     const db = await getDb();
 
     // 项目总数
-    const countResult = db.exec('SELECT COUNT(*) FROM projects');
+    const countResult = await db.exec('SELECT COUNT(*) FROM projects');
     const total = countResult[0]?.values?.[0]?.[0] || 0;
 
     // 总 stars 数
-    const starsResult = db.exec('SELECT SUM(stars) FROM projects');
+    const starsResult = await db.exec('SELECT SUM(stars) FROM projects');
     const totalStars = starsResult[0]?.values?.[0]?.[0] || 0;
 
     // 技术栈统计（聚合所有项目的 tech 数组）
-    const allResult = db.exec('SELECT tech FROM projects');
+    const allResult = await db.exec('SELECT tech FROM projects');
     const techRows = allResult[0]?.values || [];
     const techCount: Record<string, number> = {};
 

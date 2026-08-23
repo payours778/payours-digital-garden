@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import getDb, { saveDb, getCache, setCache, invalidateCache } from '../db';
+import getDb, { getCache, setCache, invalidateCache } from '../db';
 import { CreatePostRequest, UpdatePostRequest } from '../models';
 
 const parseRow = (row: any[]) => ({
@@ -51,7 +51,7 @@ export const getPosts = async (req: Request, res: Response) => {
       }
     }
 
-    const result = db.exec(sql, params);
+    const result = await db.exec(sql, params);
     const posts = result[0]?.values?.map(parseRow) || [];
     res.json({ posts, total: posts.length });
   } catch (error) {
@@ -69,7 +69,7 @@ export const getPostArchive = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const result = db.exec('SELECT id, title, created_at FROM posts ORDER BY created_at DESC');
+    const result = await db.exec('SELECT id, title, created_at FROM posts ORDER BY created_at DESC');
     const rows = result[0]?.values || [];
 
     const archive: Record<string, Record<string, { id: number; title: string; date: string }[]>> = {};
@@ -117,7 +117,7 @@ export const getPostArchive = async (req: Request, res: Response) => {
 export const getPostTags = async (req: Request, res: Response) => {
   try {
     const db = await getDb();
-    const result = db.exec('SELECT tags FROM posts');
+    const result = await db.exec('SELECT tags FROM posts');
     const rows = result[0]?.values || [];
     const tagCount: Record<string, number> = {};
 
@@ -144,7 +144,7 @@ export const getPostById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const result = db.exec('SELECT * FROM posts WHERE id = ?', [Number(id)]);
+    const result = await db.exec('SELECT * FROM posts WHERE id = ?', [Number(id)]);
     const rows = result[0]?.values;
 
     if (!rows || rows.length === 0) {
@@ -152,8 +152,7 @@ export const getPostById = async (req: Request, res: Response) => {
     }
 
     // 浏览量 +1
-    db.run('UPDATE posts SET views = views + 1 WHERE id = ?', [Number(id)]);
-    await saveDb();
+    await db.run('UPDATE posts SET views = views + 1 WHERE id = ?', [Number(id)]);
 
     res.json({ post: parseRow(rows[0]) });
   } catch (error) {
@@ -175,26 +174,25 @@ export const createPost = async (req: Request, res: Response) => {
     const tagsJson = JSON.stringify(tags || []);
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
-    db.run(
+    await db.run(
       'INSERT INTO posts (title, content, excerpt, slug, cover, tags, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [title, content, excerpt, slug, cover || null, tagsJson, now, now]
     );
 
-    const maxIdResult = db.exec('SELECT MAX(id) FROM posts');
+    const maxIdResult = await db.exec('SELECT MAX(id) FROM posts');
     const lastId = maxIdResult[0]?.values?.[0]?.[0];
 
     if (!lastId) {
       return res.status(500).json({ error: '创建文章失败' });
     }
 
-    const queryResult = db.exec('SELECT * FROM posts WHERE id = ?', [lastId]);
+    const queryResult = await db.exec('SELECT * FROM posts WHERE id = ?', [lastId]);
     const row = queryResult[0]?.values?.[0];
 
     if (!row) {
       return res.status(500).json({ error: '创建文章失败' });
     }
 
-    await saveDb();
     invalidateCache('posts');
     res.status(201).json({ post: parseRow(row) });
   } catch (error: any) {
@@ -213,7 +211,7 @@ export const updatePost = async (req: Request, res: Response) => {
     const { title, content, excerpt, cover, tags } = req.body as UpdatePostRequest;
 
     const db = await getDb();
-    const existingResult = db.exec('SELECT * FROM posts WHERE id = ?', [Number(id)]);
+    const existingResult = await db.exec('SELECT * FROM posts WHERE id = ?', [Number(id)]);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '文章不存在' });
@@ -233,11 +231,10 @@ export const updatePost = async (req: Request, res: Response) => {
     values.push(now);
 
     values.push(Number(id));
-    db.run(`UPDATE posts SET ${fields.join(', ')} WHERE id = ?`, values);
-    await saveDb();
+    await db.run(`UPDATE posts SET ${fields.join(', ')} WHERE id = ?`, values);
     invalidateCache('posts');
 
-    const updatedResult = db.exec('SELECT * FROM posts WHERE id = ?', [Number(id)]);
+    const updatedResult = await db.exec('SELECT * FROM posts WHERE id = ?', [Number(id)]);
     const row = updatedResult[0]?.values?.[0];
 
     res.json({ post: parseRow(row!) });
@@ -255,14 +252,13 @@ export const deletePost = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const existingResult = db.exec('SELECT * FROM posts WHERE id = ?', [Number(id)]);
+    const existingResult = await db.exec('SELECT * FROM posts WHERE id = ?', [Number(id)]);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '文章不存在' });
     }
 
-    db.run('DELETE FROM posts WHERE id = ?', [Number(id)]);
-    await saveDb();
+    await db.run('DELETE FROM posts WHERE id = ?', [Number(id)]);
     invalidateCache('posts');
     res.json({ message: '删除成功' });
   } catch (error) {

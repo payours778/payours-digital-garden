@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { getDb, saveDb } from '../db';
+import { getDb } from '../db';
 
 // ---- 农场状态 CRUD ----
 
@@ -9,11 +9,15 @@ export async function getFarmState(req: Request, res: Response) {
     const db = await getDb();
     const userId = (req as any).user.id;
 
-    const result = db.exec('SELECT * FROM game_farm_states WHERE user_id = ?', [userId]);
+    const result = await db.exec('SELECT * FROM game_farm_states WHERE user_id = ?', [userId]);
     if (!result[0]?.values?.length) {
       // 首次进入，用默认值插入一行
-      db.run('INSERT INTO game_farm_states (user_id) VALUES (?)', [userId]);
-      await saveDb();
+      const DEFAULT_SEED_INVENTORY =
+        '[{"cropId":"wheat","count":8},{"cropId":"carrot","count":5},{"cropId":"tomato","count":3}]';
+      await db.run(
+        'INSERT INTO game_farm_states (user_id, plots, inventory, seed_inventory, item_inventory, active_buffs) VALUES (?, ?, ?, ?, ?, ?)',
+        [userId, '[]', '[]', DEFAULT_SEED_INVENTORY, '[]', '[]']
+      );
       return res.json({
         coins: 100,
         level: 1,
@@ -66,9 +70,9 @@ export async function updateFarmState(req: Request, res: Response) {
     } = req.body;
 
     // UPSERT：不存在就插入，存在就更新
-    const existing = db.exec('SELECT id FROM game_farm_states WHERE user_id = ?', [userId]);
+    const existing = await db.exec('SELECT id FROM game_farm_states WHERE user_id = ?', [userId]);
     if (!existing[0]?.values?.length) {
-      db.run(
+      await db.run(
         `INSERT INTO game_farm_states
          (user_id, coins, level, exp, plots, inventory, seed_inventory, item_inventory, active_buffs, growth_boost_multiplier, refresh_count)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -82,7 +86,7 @@ export async function updateFarmState(req: Request, res: Response) {
          refreshCount || 0]
       );
     } else {
-      db.run(
+      await db.run(
         `UPDATE game_farm_states SET
          coins = ?, level = ?, exp = ?, plots = ?, inventory = ?,
          seed_inventory = ?, item_inventory = ?, active_buffs = ?,
@@ -100,7 +104,6 @@ export async function updateFarmState(req: Request, res: Response) {
       );
     }
 
-    await saveDb();
     res.json({ success: true });
   } catch (err) {
     console.error('[gameController] updateFarmState error:', err);

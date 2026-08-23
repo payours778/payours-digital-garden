@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { getDb, saveDb } from '../db';
+import { getDb } from '../db';
 
 export type RoomType = 'public' | 'private';
 export type Lifecycle = 'temp' | 'permanent';
@@ -59,15 +59,14 @@ export const roomPool = {
   async ensurePublicRooms(): Promise<void> {
     const db = await getDb();
     for (const code of PUBLIC_ROOM_CODES) {
-      const exists = db.exec('SELECT id FROM fish_rooms WHERE code = ?', [code]);
+      const exists = await db.exec('SELECT id FROM fish_rooms WHERE code = ?', [code]);
       if (!exists[0]?.values?.length) {
-        db.run(
+        await db.run(
           "INSERT INTO fish_rooms (code, owner_id, room_type, lifecycle, is_public, max_participants) VALUES (?, NULL, 'public', 'permanent', 1, 50)",
           [code]
         );
       }
     }
-    await saveDb();
   },
 
   // 创建私有房：随机不可猜 code，仅持链接可进
@@ -75,39 +74,36 @@ export const roomPool = {
     const db = await getDb();
     const code = 'rm_' + crypto.randomBytes(6).toString('hex');
     const max = opts.maxParticipants ?? 10;
-    db.run(
+    const ins = await db.run(
       "INSERT INTO fish_rooms (code, owner_id, room_type, lifecycle, is_public, max_participants) VALUES (?, ?, 'private', ?, ?, ?)",
       [code, opts.ownerId, opts.lifecycle, opts.isPublic ? 1 : 0, max]
     );
-    const roomId = Number(db.exec('SELECT last_insert_rowid()')[0].values[0][0]);
+    const roomId = Number(ins.lastInsertRowid);
     const token = crypto.randomUUID();
-    db.run(
-      "INSERT INTO fish_room_participants (room_id, token, nickname, joined_at, last_active) VALUES (?, ?, ?, datetime('now'), datetime('now'))",
+    await db.run(
+      "INSERT INTO fish_room_participants (room_id, token, nickname, joined_at, last_active) VALUES (?, ?, ?, NOW(), NOW())",
       [roomId, token, opts.username]
     );
-    await saveDb();
-    const room = this.getRoomRow(db, roomId)!;
-    return { room, token };
+    const room = await this.getRoomRow(db, roomId);
+    return { room: room!, token };
   },
 
   // 每日清理：销毁 lifecycle='temp' 且无活跃成员的房间（连带消息与参与者）
   async destroyTempRooms(): Promise<number> {
     const db = await getDb();
-    const timeout = '-' + ACTIVE_TIMEOUT_SECONDS + ' seconds';
-    const stale = db.exec(
+    const stale = await db.exec(
       `SELECT r.id FROM fish_rooms r
        WHERE r.lifecycle = 'temp'
          AND (r.destroyed_at IS NULL)
-         AND (SELECT COUNT(*) FROM fish_room_participants p WHERE p.room_id = r.id AND p.last_active >= datetime('now', ?)) = 0`,
-      [timeout]
+         AND (SELECT COUNT(*) FROM fish_room_participants p WHERE p.room_id = r.id AND p.last_active >= DATE_SUB(NOW(), INTERVAL ? SECOND)) = 0`,
+      [ACTIVE_TIMEOUT_SECONDS]
     );
     const ids = (stale[0]?.values || []).map((r: any) => r[0]);
     for (const id of ids) {
-      db.run('DELETE FROM fish_messages WHERE room_id = ?', [id]);
-      db.run('DELETE FROM fish_room_participants WHERE room_id = ?', [id]);
-      db.run("UPDATE fish_rooms SET destroyed_at = datetime('now') WHERE id = ?", [id]);
+      await db.run('DELETE FROM fish_messages WHERE room_id = ?', [id]);
+      await db.run('DELETE FROM fish_room_participants WHERE room_id = ?', [id]);
+      await db.run("UPDATE fish_rooms SET destroyed_at = NOW() WHERE id = ?", [id]);
     }
-    if (ids.length) await saveDb();
     return ids.length;
   },
 
@@ -119,17 +115,17 @@ export const roomPool = {
   // 列出可见的公开房（public 类型且 is_public=1）
   async listPublicRooms(): Promise<RoomRow[]> {
     const db = await getDb();
-    const result = db.exec(
+    const result = await db.exec(
       `SELECT ${ROOM_COLUMNS} FROM fish_rooms WHERE room_type = 'public' AND is_public = 1 AND destroyed_at IS NULL ORDER BY id`
     );
     return (result[0]?.values || []).map(parseRoomRow);
   },
 
-  getRoomRow(db: any, key: number | string): RoomRow | null {
+  async getRoomRow(db: any, key: number | string): Promise<RoomRow | null> {
     const result =
       typeof key === 'number'
-        ? db.exec(`SELECT ${ROOM_COLUMNS} FROM fish_rooms WHERE id = ?`, [key])
-        : db.exec(`SELECT ${ROOM_COLUMNS} FROM fish_rooms WHERE UPPER(code) = UPPER(?)`, [key]);
+        ? await db.exec(`SELECT ${ROOM_COLUMNS} FROM fish_rooms WHERE id = ?`, [key])
+        : await db.exec(`SELECT ${ROOM_COLUMNS} FROM fish_rooms WHERE UPPER(code) = UPPER(?)`, [key]);
     const row = result[0]?.values?.[0];
     return row ? parseRoomRow(row) : null;
   },

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import getDb, { saveDb } from '../db';
+import getDb from '../db';
 
 interface Essay {
   id: number;
@@ -36,7 +36,7 @@ export const getEssays = async (req: Request, res: Response) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    const result = db.exec(sql, params);
+    const result = await db.exec(sql, params);
     const essays = result[0]?.values?.map(parseEssay) || [];
     res.json({ essays, total: essays.length });
   } catch (error) {
@@ -49,7 +49,7 @@ export const getEssayById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const result = db.exec('SELECT * FROM essays WHERE id = ?', [Number(id)]);
+    const result = await db.exec('SELECT * FROM essays WHERE id = ?', [Number(id)]);
     
     if (!result[0]?.values?.length) {
       return res.status(404).json({ error: '随笔未找到' });
@@ -72,16 +72,15 @@ export const createEssay = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const result = db.run(
+    const result = await db.run(
       'INSERT INTO essays (title, content, excerpt, cover, date) VALUES (?, ?, ?, ?, ?)',
       [title, content, excerpt || '', cover || '', date || new Date().toISOString().split('T')[0]]
     );
 
-    const lastId = db.exec('SELECT MAX(id) FROM essays')[0].values[0][0];
-    const inserted = db.exec('SELECT * FROM essays WHERE id = ?', [lastId]);
+    const lastId = (await db.exec('SELECT MAX(id) FROM essays'))[0].values[0][0];
+    const inserted = await db.exec('SELECT * FROM essays WHERE id = ?', [lastId]);
     const essay = parseEssay(inserted[0].values[0]);
 
-    await saveDb();
     res.status(201).json({ essay });
   } catch (error) {
     console.error('创建随笔失败:', error);
@@ -95,21 +94,20 @@ export const updateEssay = async (req: Request, res: Response) => {
     const { title, content, excerpt, cover, date } = req.body;
 
     const db = await getDb();
-    const existing = db.exec('SELECT * FROM essays WHERE id = ?', [Number(id)]);
+    const existing = await db.exec('SELECT * FROM essays WHERE id = ?', [Number(id)]);
     
     if (!existing[0]?.values?.length) {
       return res.status(404).json({ error: '随笔未找到' });
     }
 
-    const result = db.run(
+    const result = await db.run(
       'UPDATE essays SET title = ?, content = ?, excerpt = ?, cover = ?, date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
       [title, content, excerpt || '', cover || '', date || '', Number(id)]
     );
 
-    const updated = db.exec('SELECT * FROM essays WHERE id = ?', [Number(id)]);
+    const updated = await db.exec('SELECT * FROM essays WHERE id = ?', [Number(id)]);
     const essay = parseEssay(updated[0].values[0]);
 
-    await saveDb();
     res.json({ essay });
   } catch (error) {
     console.error('更新随笔失败:', error);
@@ -122,13 +120,12 @@ export const deleteEssay = async (req: Request, res: Response) => {
     const { id } = req.params;
     const db = await getDb();
     
-    const existing = db.exec('SELECT * FROM essays WHERE id = ?', [Number(id)]);
+    const existing = await db.exec('SELECT * FROM essays WHERE id = ?', [Number(id)]);
     if (!existing[0]?.values?.length) {
       return res.status(404).json({ error: '随笔未找到' });
     }
 
-    db.run('DELETE FROM essays WHERE id = ?', [Number(id)]);
-    await saveDb();
+    await db.run('DELETE FROM essays WHERE id = ?', [Number(id)]);
     res.json({ message: '删除成功' });
   } catch (error) {
     console.error('删除随笔失败:', error);

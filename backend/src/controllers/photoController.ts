@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import getDb, { saveDb } from '../db';
+import getDb from '../db';
 import { uploadImage } from '../utils/oss';
 import { CreateAlbumRequest, UpdateAlbumRequest, CreatePhotoRequest, UpdatePhotoRequest } from '../models';
 
@@ -24,11 +24,11 @@ const parsePhotoRow = (row: any[]) => ({
 export const getAlbums = async (req: Request, res: Response) => {
   try {
     const db = await getDb();
-    const result = db.exec('SELECT * FROM albums ORDER BY created_at DESC');
+    const result = await db.exec('SELECT * FROM albums ORDER BY created_at DESC');
     const albums = (result[0]?.values || []).map(parseAlbumRow);
 
     for (const album of albums) {
-      const countResult = db.exec(`SELECT COUNT(*) FROM photos WHERE album_id = ${album.id}`);
+      const countResult = await db.exec(`SELECT COUNT(*) FROM photos WHERE album_id = ${album.id}`);
       album.photo_count = Number(countResult[0]?.values?.[0]?.[0]) || 0;
     }
 
@@ -43,7 +43,7 @@ export const getAlbumById = async (req: Request, res: Response) => {
     const { id } = req.params;
     const db = await getDb();
 
-    const albumResult = db.exec(`SELECT * FROM albums WHERE id = ${id}`);
+    const albumResult = await db.exec(`SELECT * FROM albums WHERE id = ${id}`);
     const albumRows = albumResult[0]?.values;
 
     if (!albumRows || albumRows.length === 0) {
@@ -52,7 +52,7 @@ export const getAlbumById = async (req: Request, res: Response) => {
 
     const album = parseAlbumRow(albumRows[0]);
 
-    const photosResult = db.exec(`SELECT * FROM photos WHERE album_id = ${id} ORDER BY created_at DESC`);
+    const photosResult = await db.exec(`SELECT * FROM photos WHERE album_id = ${id} ORDER BY created_at DESC`);
     album.photos = (photosResult[0]?.values || []).map(parsePhotoRow);
     album.photo_count = album.photos.length;
 
@@ -73,26 +73,25 @@ export const createAlbum = async (req: Request, res: Response) => {
     const db = await getDb();
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
-    db.run(
+    await db.run(
       'INSERT INTO albums (name, description, cover, created_at) VALUES (?, ?, ?, ?)',
       [name, description || '', cover || '', now]
     );
 
-    const maxIdResult = db.exec('SELECT MAX(id) FROM albums');
+    const maxIdResult = await db.exec('SELECT MAX(id) FROM albums');
     const lastId = maxIdResult[0]?.values?.[0]?.[0];
 
     if (!lastId) {
       return res.status(500).json({ error: '创建相册失败' });
     }
 
-    const queryResult = db.exec(`SELECT * FROM albums WHERE id = ${lastId}`);
+    const queryResult = await db.exec(`SELECT * FROM albums WHERE id = ${lastId}`);
     const row = queryResult[0]?.values?.[0];
 
     if (!row) {
       return res.status(500).json({ error: '创建相册失败' });
     }
 
-    await saveDb();
     res.status(201).json({ album: parseAlbumRow(row) });
   } catch (error) {
     res.status(500).json({ error: '创建相册失败' });
@@ -105,7 +104,7 @@ export const updateAlbum = async (req: Request, res: Response) => {
     const { name, description, cover } = req.body as UpdateAlbumRequest;
 
     const db = await getDb();
-    const existingResult = db.exec(`SELECT * FROM albums WHERE id = ${id}`);
+    const existingResult = await db.exec(`SELECT * FROM albums WHERE id = ${id}`);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '相册不存在' });
@@ -119,11 +118,10 @@ export const updateAlbum = async (req: Request, res: Response) => {
     if (cover !== undefined) { fields.push('cover = ?'); values.push(cover); }
 
     if (fields.length > 0) {
-      db.run(`UPDATE albums SET ${fields.join(', ')} WHERE id = ${id}`, values);
-      await saveDb();
+      await db.run(`UPDATE albums SET ${fields.join(', ')} WHERE id = ${id}`, values);
     }
 
-    const updatedResult = db.exec(`SELECT * FROM albums WHERE id = ${id}`);
+    const updatedResult = await db.exec(`SELECT * FROM albums WHERE id = ${id}`);
     const row = updatedResult[0]?.values?.[0];
 
     res.json({ album: parseAlbumRow(row!) });
@@ -136,15 +134,14 @@ export const deleteAlbum = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const existingResult = db.exec(`SELECT * FROM albums WHERE id = ${id}`);
+    const existingResult = await db.exec(`SELECT * FROM albums WHERE id = ${id}`);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '相册不存在' });
     }
 
-    db.run(`DELETE FROM photos WHERE album_id = ${id}`);
-    db.run(`DELETE FROM albums WHERE id = ${id}`);
-    await saveDb();
+    await db.run(`DELETE FROM photos WHERE album_id = ${id}`);
+    await db.run(`DELETE FROM albums WHERE id = ${id}`);
     res.json({ message: '删除成功' });
   } catch (error) {
     res.status(500).json({ error: '删除相册失败' });
@@ -161,7 +158,7 @@ export const uploadPhoto = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const albumResult = db.exec(`SELECT * FROM albums WHERE id = ${albumId}`);
+    const albumResult = await db.exec(`SELECT * FROM albums WHERE id = ${albumId}`);
 
     if (!albumResult[0]?.values?.length) {
       return res.status(404).json({ error: '相册不存在' });
@@ -172,17 +169,15 @@ export const uploadPhoto = async (req: Request, res: Response) => {
 
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
-    db.run(
+    await db.run(
       'INSERT INTO photos (album_id, url, caption, created_at) VALUES (?, ?, ?, ?)',
       [albumId, url, caption || '', now]
     );
 
-    const maxIdResult = db.exec('SELECT MAX(id) FROM photos');
+    const maxIdResult = await db.exec('SELECT MAX(id) FROM photos');
     const lastId = maxIdResult[0]?.values?.[0]?.[0];
 
-    await saveDb();
-
-    const photoResult = db.exec(`SELECT * FROM photos WHERE id = ${lastId}`);
+    const photoResult = await db.exec(`SELECT * FROM photos WHERE id = ${lastId}`);
     const row = photoResult[0]?.values?.[0];
 
     res.status(201).json({ photo: row ? parsePhotoRow(row) : null });
@@ -202,7 +197,7 @@ export const addPhotos = async (req: Request, res: Response) => {
     }
 
     const db = await getDb();
-    const albumResult = db.exec(`SELECT * FROM albums WHERE id = ${albumId}`);
+    const albumResult = await db.exec(`SELECT * FROM albums WHERE id = ${albumId}`);
 
     if (!albumResult[0]?.values?.length) {
       return res.status(404).json({ error: '相册不存在' });
@@ -211,15 +206,13 @@ export const addPhotos = async (req: Request, res: Response) => {
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
 
     for (const photo of photos) {
-      db.run(
+      await db.run(
         'INSERT INTO photos (album_id, url, caption, created_at) VALUES (?, ?, ?, ?)',
         [albumId, photo.url, photo.caption || '', now]
       );
     }
 
-    await saveDb();
-
-    const photosResult = db.exec(`SELECT * FROM photos WHERE album_id = ${albumId} ORDER BY created_at DESC`);
+    const photosResult = await db.exec(`SELECT * FROM photos WHERE album_id = ${albumId} ORDER BY created_at DESC`);
     const insertedPhotos = (photosResult[0]?.values || []).map(parsePhotoRow);
 
     res.status(201).json({ photos: insertedPhotos });
@@ -234,18 +227,17 @@ export const updatePhoto = async (req: Request, res: Response) => {
     const { caption } = req.body as UpdatePhotoRequest;
 
     const db = await getDb();
-    const existingResult = db.exec(`SELECT * FROM photos WHERE id = ${id}`);
+    const existingResult = await db.exec(`SELECT * FROM photos WHERE id = ${id}`);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '照片不存在' });
     }
 
     if (caption !== undefined) {
-      db.run(`UPDATE photos SET caption = ? WHERE id = ${id}`, [caption]);
-      await saveDb();
+      await db.run(`UPDATE photos SET caption = ? WHERE id = ${id}`, [caption]);
     }
 
-    const updatedResult = db.exec(`SELECT * FROM photos WHERE id = ${id}`);
+    const updatedResult = await db.exec(`SELECT * FROM photos WHERE id = ${id}`);
     const row = updatedResult[0]?.values?.[0];
 
     res.json({ photo: parsePhotoRow(row!) });
@@ -258,14 +250,13 @@ export const deletePhoto = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const existingResult = db.exec(`SELECT * FROM photos WHERE id = ${id}`);
+    const existingResult = await db.exec(`SELECT * FROM photos WHERE id = ${id}`);
 
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '照片不存在' });
     }
 
-    db.run(`DELETE FROM photos WHERE id = ${id}`);
-    await saveDb();
+    await db.run(`DELETE FROM photos WHERE id = ${id}`);
     res.json({ message: '删除成功' });
   } catch (error) {
     res.status(500).json({ error: '删除照片失败' });
@@ -275,7 +266,7 @@ export const deletePhoto = async (req: Request, res: Response) => {
 export const getAllPhotos = async (req: Request, res: Response) => {
   try {
     const db = await getDb();
-    const result = db.exec('SELECT * FROM photos ORDER BY created_at DESC');
+    const result = await db.exec('SELECT * FROM photos ORDER BY created_at DESC');
     const photos = (result[0]?.values || []).map(parsePhotoRow);
     res.json({ photos });
   } catch (error) {
@@ -307,11 +298,11 @@ export const searchPhotos = async (req: Request, res: Response) => {
     query += ' LIMIT ? OFFSET ?';
     params.push(Number(limit), offset);
 
-    const result = db.exec(query, params);
+    const result = await db.exec(query, params);
     const photos = (result[0]?.values || []).map(parsePhotoRow);
 
     const countQuery = query.replace('SELECT *', 'SELECT COUNT(*)').replace('ORDER BY created_at DESC', '').replace('LIMIT ? OFFSET ?', '');
-    const countResult = db.exec(countQuery, params.slice(0, -2));
+    const countResult = await db.exec(countQuery, params.slice(0, -2));
     const total = Number(countResult[0]?.values?.[0]?.[0]) || 0;
 
     res.json({

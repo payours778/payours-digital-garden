@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import crypto from 'crypto';
-import { getDb, saveDb } from '../db';
+import { getDb } from '../db';
 import { roomPool, RoomRow, ROOM_COLUMNS } from '../services/roomPool';
 
 interface Participant {
@@ -61,14 +61,17 @@ const parseMessageRow = (row: any[]): Message => ({
 
 const cleanupStaleParticipants = async (): Promise<void> => {
   const db = await getDb();
-  const timeout = "-" + ACTIVE_TIMEOUT_SECONDS + " seconds";
-  db.run("DELETE FROM fish_room_participants WHERE last_active < datetime('now', ?)", [timeout]);
-  await saveDb();
+  await db.run(
+    "DELETE FROM fish_room_participants WHERE last_active < DATE_SUB(NOW(), INTERVAL ? SECOND)",
+    [ACTIVE_TIMEOUT_SECONDS]
+  );
 };
 
-const getActiveParticipants = (db: any, roomId: number): Participant[] => {
-  const timeout = "-" + PRESENCE_TIMEOUT_SECONDS + " seconds";
-  const result = db.exec("SELECT * FROM fish_room_participants WHERE room_id = ? AND last_active >= datetime('now', ?) ORDER BY joined_at", [roomId, timeout]);
+const getActiveParticipants = async (db: any, roomId: number): Promise<Participant[]> => {
+  const result = await db.exec(
+    "SELECT * FROM fish_room_participants WHERE room_id = ? AND last_active >= DATE_SUB(NOW(), INTERVAL ? SECOND) ORDER BY joined_at",
+    [roomId, PRESENCE_TIMEOUT_SECONDS]
+  );
   return (result[0]?.values || []).map(parseParticipantRow);
 };
 
@@ -85,7 +88,7 @@ export const createRoom = async (req: Request, res: Response) => {
     // 普通用户最多同时拥有 10 个房间（管理员不限）
     if (user.role !== 'admin') {
       const ownedDb = await getDb();
-      const ownedResult = ownedDb.exec(
+      const ownedResult = await ownedDb.exec(
         'SELECT COUNT(*) FROM fish_rooms WHERE owner_id = ? AND destroyed_at IS NULL',
         [user.id]
       );
@@ -104,16 +107,15 @@ export const createRoom = async (req: Request, res: Response) => {
     });
 
     const db = await getDb();
-    db.run(
+    await db.run(
       "INSERT INTO fish_messages (room_id, sender_nickname, content) VALUES (?, '\u7cfb\u7edf', ?)",
       [room.id, '\ud83c\udf80 ' + user.username + ' \u521b\u5efa\u4e86\u623f\u95f4']
     );
-    await saveDb();
 
     const fullRoom = parseRoomRow(
-      db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE id = ?', [room.id])[0].values[0]
+      (await db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE id = ?', [room.id]))[0].values[0]
     );
-    fullRoom.participants = getActiveParticipants(db, room.id);
+    fullRoom.participants = await getActiveParticipants(db, room.id);
 
     res.json({ room: fullRoom, participantToken: token });
   } catch (error) {
@@ -137,9 +139,9 @@ export const joinRoom = async (req: Request, res: Response) => {
     if (!roomRow || roomRow.destroyed_at) {
       return res.status(404).json({ error: '\u623f\u95f4\u4e0d\u5b58\u5728' });
     }
-    const room = parseRoomRow(db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE id = ?', [roomRow.id])[0].values[0]);
+    const room = parseRoomRow((await db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE id = ?', [roomRow.id]))[0].values[0]);
 
-    const participants = getActiveParticipants(db, room.id);
+    const participants = await getActiveParticipants(db, room.id);
     room.participants = participants;
 
     if (participants.length >= room.max_participants) {
@@ -153,18 +155,17 @@ export const joinRoom = async (req: Request, res: Response) => {
       token = already.token;
     } else {
       token = generateToken();
-      db.run(
-        "INSERT INTO fish_room_participants (room_id, token, nickname, last_active) VALUES (?, ?, ?, datetime('now'))",
+      await db.run(
+        "INSERT INTO fish_room_participants (room_id, token, nickname, last_active) VALUES (?, ?, ?, NOW())",
         [room.id, token, user.username]
       );
-      db.run(
+      await db.run(
         "INSERT INTO fish_messages (room_id, sender_nickname, content) VALUES (?, '\u7cfb\u7edf', ?)",
         [room.id, '\ud83c\udf80 ' + user.username + ' \u52a0\u5165\u4e86\u623f\u95f4']
       );
-      await saveDb();
     }
 
-    room.participants = getActiveParticipants(db, room.id);
+    room.participants = await getActiveParticipants(db, room.id);
     res.json({ room, participantToken: token });
   } catch (error) {
     console.error('joinRoom error:', error);
@@ -178,14 +179,14 @@ export const getRoomByCode = async (req: Request, res: Response) => {
     await cleanupStaleParticipants();
     const db = await getDb();
 
-    const roomResult = db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE UPPER(code) = UPPER(?)', [code]);
+    const roomResult = await db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE UPPER(code) = UPPER(?)', [code]);
 
     if (!roomResult[0]?.values?.length) {
       return res.status(404).json({ error: '\u623f\u95f4\u4e0d\u5b58\u5728' });
     }
 
     const room = parseRoomRow(roomResult[0].values[0]);
-    room.participants = getActiveParticipants(db, room.id);
+    room.participants = await getActiveParticipants(db, room.id);
 
     res.json({ room });
   } catch (error) {
@@ -203,17 +204,17 @@ export const getRoomByCodeFull = async (req: Request, res: Response) => {
     const db = await getDb();
 
     if (participantToken && typeof participantToken === 'string') {
-      db.run("UPDATE fish_room_participants SET last_active = datetime('now') WHERE token = ?", [participantToken]);
+      await db.run("UPDATE fish_room_participants SET last_active = NOW() WHERE token = ?", [participantToken]);
     }
 
-    const roomResult = db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE UPPER(code) = UPPER(?)', [code]);
+    const roomResult = await db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE UPPER(code) = UPPER(?)', [code]);
 
     if (!roomResult[0]?.values?.length) {
       return res.status(404).json({ error: '\u623f\u95f4\u4e0d\u5b58\u5728' });
     }
 
     const room = parseRoomRow(roomResult[0].values[0]);
-    room.participants = getActiveParticipants(db, room.id);
+    room.participants = await getActiveParticipants(db, room.id);
 
     res.json({ room });
   } catch (error) {
@@ -237,7 +238,7 @@ export const sendMessage = async (req: Request, res: Response) => {
 
     const db = await getDb();
 
-    const participantResult = db.exec('SELECT nickname FROM fish_room_participants WHERE token = ? AND room_id = ?', [participantToken, Number(roomId)]);
+    const participantResult = await db.exec('SELECT nickname FROM fish_room_participants WHERE token = ? AND room_id = ?', [participantToken, Number(roomId)]);
     const participant = participantResult[0]?.values?.[0];
     if (!participant) {
       return res.status(404).json({ error: '\u53c2\u4e0e\u8005\u4e0d\u5b58\u5728' });
@@ -245,23 +246,21 @@ export const sendMessage = async (req: Request, res: Response) => {
 
     const nickname = String(participant[0]);
 
-    db.run("UPDATE fish_room_participants SET last_active = datetime('now') WHERE token = ?", [participantToken]);
+    await db.run("UPDATE fish_room_participants SET last_active = NOW() WHERE token = ?", [participantToken]);
 
-    db.run(
+    await db.run(
       'INSERT INTO fish_messages (room_id, sender_nickname, content) VALUES (?, ?, ?)',
       [Number(roomId), nickname, content.trim()]
     );
 
     // Trim old messages
-    const countResult = db.exec('SELECT COUNT(*) FROM fish_messages WHERE room_id = ?', [Number(roomId)]);
+    const countResult = await db.exec('SELECT COUNT(*) FROM fish_messages WHERE room_id = ?', [Number(roomId)]);
     const count = Number(countResult[0]?.values?.[0]?.[0] || 0);
     if (count > MAX_MESSAGES) {
-      db.run('DELETE FROM fish_messages WHERE id IN (SELECT id FROM fish_messages WHERE room_id = ? ORDER BY id LIMIT ?)', [Number(roomId), count - MAX_MESSAGES]);
+      await db.run('DELETE FROM fish_messages WHERE id IN (SELECT id FROM fish_messages WHERE room_id = ? ORDER BY id LIMIT ?)', [Number(roomId), count - MAX_MESSAGES]);
     }
 
-    await saveDb();
-
-    const messagesResult = db.exec('SELECT * FROM fish_messages WHERE room_id = ? ORDER BY id DESC LIMIT 1', [Number(roomId)]);
+    const messagesResult = await db.exec('SELECT * FROM fish_messages WHERE room_id = ? ORDER BY id DESC LIMIT 1', [Number(roomId)]);
     const message = messagesResult[0]?.values?.[0] ? parseMessageRow(messagesResult[0].values[0]) : null;
 
     res.json({ message });
@@ -279,14 +278,14 @@ export const getMessages = async (req: Request, res: Response) => {
     const db = await getDb();
 
     if (participantToken && typeof participantToken === 'string') {
-      db.run("UPDATE fish_room_participants SET last_active = datetime('now') WHERE token = ?", [participantToken]);
+      await db.run("UPDATE fish_room_participants SET last_active = NOW() WHERE token = ?", [participantToken]);
     }
 
-    const messagesResult = db.exec('SELECT * FROM fish_messages WHERE room_id = ? ORDER BY id', [Number(roomId)]);
+    const messagesResult = await db.exec('SELECT * FROM fish_messages WHERE room_id = ? ORDER BY id', [Number(roomId)]);
     const messages = (messagesResult[0]?.values || []).map(parseMessageRow);
 
     // 在线人数：最近 PRESENCE_TIMEOUT_SECONDS 内有心跳的参与者
-    const participants = getActiveParticipants(db, Number(roomId));
+    const participants = await getActiveParticipants(db, Number(roomId));
 
     res.json({ messages, online: participants.length, participants });
   } catch (error) {
@@ -305,10 +304,10 @@ export const leaveRoom = async (req: Request, res: Response) => {
     // 优先用 token 精确退出；未带 token 时按当前登录账号退出（我的房间列表移除）
     let participant: any[] | null = null;
     if (participantToken) {
-      const r = db.exec('SELECT nickname FROM fish_room_participants WHERE token = ? AND room_id = ?', [participantToken, Number(roomId)]);
+      const r = await db.exec('SELECT nickname FROM fish_room_participants WHERE token = ? AND room_id = ?', [participantToken, Number(roomId)]);
       participant = r[0]?.values?.[0] || null;
     } else if (user?.username) {
-      const r = db.exec('SELECT nickname FROM fish_room_participants WHERE nickname = ? AND room_id = ?', [user.username, Number(roomId)]);
+      const r = await db.exec('SELECT nickname FROM fish_room_participants WHERE nickname = ? AND room_id = ?', [user.username, Number(roomId)]);
       participant = r[0]?.values?.[0] || null;
     }
     if (!participant) {
@@ -318,17 +317,15 @@ export const leaveRoom = async (req: Request, res: Response) => {
     const nickname = String(participant[0]);
 
     if (participantToken) {
-      db.run('DELETE FROM fish_room_participants WHERE token = ? AND room_id = ?', [participantToken, Number(roomId)]);
+      await db.run('DELETE FROM fish_room_participants WHERE token = ? AND room_id = ?', [participantToken, Number(roomId)]);
     } else {
-      db.run('DELETE FROM fish_room_participants WHERE nickname = ? AND room_id = ?', [user.username, Number(roomId)]);
+      await db.run('DELETE FROM fish_room_participants WHERE nickname = ? AND room_id = ?', [user.username, Number(roomId)]);
     }
 
-    db.run(
+    await db.run(
       "INSERT INTO fish_messages (room_id, sender_nickname, content) VALUES (?, '\u7cfb\u7edf', ?)",
       [Number(roomId), '\ud83d\udce2 ' + nickname + ' \u79bb\u5f00\u4e86\u623f\u95f4']
     );
-
-    await saveDb();
 
     res.json({ success: true });
   } catch (error) {
@@ -347,7 +344,7 @@ export const deleteRoom = async (req: Request, res: Response) => {
     }
     const db = await getDb();
 
-    const roomResult = db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE id = ?', [Number(roomId)]);
+    const roomResult = await db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE id = ?', [Number(roomId)]);
     const row = roomResult[0]?.values?.[0];
     if (!row) {
       return res.status(404).json({ error: '\u623f\u95f4\u4e0d\u5b58\u5728' });
@@ -357,10 +354,9 @@ export const deleteRoom = async (req: Request, res: Response) => {
       return res.status(403).json({ error: '\u53ea\u6709\u623f\u4e3b\u53ef\u4ee5\u5220\u9664\u623f\u95f4' });
     }
 
-    db.run('DELETE FROM fish_messages WHERE room_id = ?', [room.id]);
-    db.run('DELETE FROM fish_room_participants WHERE room_id = ?', [room.id]);
-    db.run("UPDATE fish_rooms SET destroyed_at = datetime('now') WHERE id = ?", [room.id]);
-    await saveDb();
+    await db.run('DELETE FROM fish_messages WHERE room_id = ?', [room.id]);
+    await db.run('DELETE FROM fish_room_participants WHERE room_id = ?', [room.id]);
+    await db.run("UPDATE fish_rooms SET destroyed_at = NOW() WHERE id = ?", [room.id]);
 
     res.json({ success: true });
   } catch (error) {
@@ -374,9 +370,9 @@ export const getRoomsList = async (req: Request, res: Response) => {
     await cleanupStaleParticipants();
     const db = await getDb();
 
-    const roomsResult = db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms ORDER BY id');
+    const roomsResult = await db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms ORDER BY id');
     const rooms: Room[] = (roomsResult[0]?.values || []).map(parseRoomRow);
-    rooms.forEach(r => { r.participants = getActiveParticipants(db, r.id); });
+    for (const r of rooms) { r.participants = await getActiveParticipants(db, r.id); }
 
     res.json({ rooms });
   } catch (error) {
@@ -395,9 +391,9 @@ export const getParticipantInfo = async (req: Request, res: Response) => {
     await cleanupStaleParticipants();
     const db = await getDb();
 
-    db.run("UPDATE fish_room_participants SET last_active = datetime('now') WHERE token = ?", [participantToken]);
+    await db.run("UPDATE fish_room_participants SET last_active = NOW() WHERE token = ?", [participantToken]);
 
-    const result = db.exec('SELECT * FROM fish_room_participants WHERE token = ?', [participantToken]);
+    const result = await db.exec('SELECT * FROM fish_room_participants WHERE token = ?', [participantToken]);
     const row = result[0]?.values?.[0];
     if (!row) {
       return res.status(404).json({ error: '\u53c2\u4e0e\u8005\u4e0d\u5b58\u5728\u6216\u5df2\u8fc7\u671f' });
@@ -414,11 +410,12 @@ export const listPublicRooms = async (_req: Request, res: Response) => {
   try {
     const db = await getDb();
     const rooms = await roomPool.listPublicRooms();
-    const enriched: Room[] = rooms.map(r => {
-      const parsed = parseRoomRow(db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE id = ?', [r.id])[0].values[0]);
-      parsed.participants = getActiveParticipants(db, r.id);
-      return parsed;
-    });
+    const enriched: Room[] = [];
+    for (const r of rooms) {
+      const parsed = parseRoomRow((await db.exec('SELECT ' + ROOM_COLUMNS + ' FROM fish_rooms WHERE id = ?', [r.id]))[0].values[0]);
+      parsed.participants = await getActiveParticipants(db, r.id);
+      enriched.push(parsed);
+    }
     res.json({ rooms: enriched });
   } catch (error) {
     console.error('listPublicRooms error:', error);
@@ -434,7 +431,7 @@ export const getMyRooms = async (req: Request, res: Response) => {
       return res.status(401).json({ error: '\u8bf7\u5148\u767b\u5f55' });
     }
     const db = await getDb();
-    const result = db.exec(
+    const result = await db.exec(
       `SELECT DISTINCT r.id, r.code, r.owner_id, r.room_type, r.lifecycle, r.is_public, r.max_participants, r.destroyed_at, r.created_at FROM fish_rooms r
        LEFT JOIN fish_room_participants p ON p.room_id = r.id
        WHERE r.destroyed_at IS NULL
@@ -443,11 +440,12 @@ export const getMyRooms = async (req: Request, res: Response) => {
        ORDER BY r.created_at DESC`,
       [user.id || -1, user.username]
     );
-    const enriched: Room[] = (result[0]?.values || []).map((row: any[]) => {
+    const enriched: Room[] = [];
+    for (const row of (result[0]?.values || [])) {
       const parsed = parseRoomRow(row);
-      parsed.participants = getActiveParticipants(db, parsed.id);
-      return parsed;
-    });
+      parsed.participants = await getActiveParticipants(db, parsed.id);
+      enriched.push(parsed);
+    }
     res.json({ rooms: enriched });
   } catch (error) {
     console.error('getMyRooms error:', error);

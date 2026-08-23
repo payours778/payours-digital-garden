@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import getDb, { saveDb } from '../db';
+import getDb from '../db';
 import { CreateMomentRequest, UpdateMomentRequest } from '../models';
 
 const parseImages = (imagesVal: any): string[] => {
@@ -17,7 +17,7 @@ const parseImages = (imagesVal: any): string[] => {
 export const getMoments = async (req: Request, res: Response) => {
   try {
     const db = await getDb();
-    const moments = db.exec('SELECT * FROM moments ORDER BY created_at DESC');
+    const moments = await db.exec('SELECT * FROM moments ORDER BY created_at DESC');
     res.json({ moments: moments[0]?.values?.map((row: any[]) => ({
       id: row[0],
       content: row[1],
@@ -34,7 +34,7 @@ export const getMomentById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const result = db.exec(`SELECT * FROM moments WHERE id = ${id}`);
+    const result = await db.exec(`SELECT * FROM moments WHERE id = ${id}`);
     const rows = result[0]?.values;
     
     if (!rows || rows.length === 0) {
@@ -69,26 +69,24 @@ export const createMoment = async (req: Request, res: Response) => {
     
     const db = await getDb();
     const now = new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().replace('T', ' ').slice(0, 19);
-    db.run(
+    await db.run(
       'INSERT INTO moments (content, images, created_at) VALUES (?, ?, ?)',
       [content, imagesJson, now]
     );
     
-    const maxIdResult = db.exec('SELECT MAX(id) FROM moments');
+    const maxIdResult = await db.exec('SELECT MAX(id) FROM moments');
     const lastId = maxIdResult[0]?.values?.[0]?.[0];
     
     if (!lastId) {
       return res.status(500).json({ error: '发布说说失败' });
     }
     
-    const queryResult = db.exec(`SELECT * FROM moments WHERE id = ${lastId}`);
+    const queryResult = await db.exec(`SELECT * FROM moments WHERE id = ${lastId}`);
     const row = queryResult[0]?.values?.[0];
     
     if (!row) {
       return res.status(500).json({ error: '发布说说失败' });
     }
-    
-    await saveDb();
     
     const newMoment = {
       id: row[0],
@@ -111,7 +109,7 @@ export const updateMoment = async (req: Request, res: Response) => {
     const { content, images } = req.body as UpdateMomentRequest;
     
     const db = await getDb();
-    const existingResult = db.exec(`SELECT * FROM moments WHERE id = ${id}`);
+    const existingResult = await db.exec(`SELECT * FROM moments WHERE id = ${id}`);
     
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '说说不存在' });
@@ -127,10 +125,9 @@ export const updateMoment = async (req: Request, res: Response) => {
       values.push(JSON.stringify(imagesArray)); 
     }
     
-    db.run(`UPDATE moments SET ${fields.join(', ')} WHERE id = ${id}`, values);
-    await saveDb();
+    await db.run(`UPDATE moments SET ${fields.join(', ')} WHERE id = ${id}`, values);
     
-    const updatedResult = db.exec(`SELECT * FROM moments WHERE id = ${id}`);
+    const updatedResult = await db.exec(`SELECT * FROM moments WHERE id = ${id}`);
     const row = updatedResult[0]?.values?.[0];
     
     if (!row) {
@@ -155,14 +152,13 @@ export const deleteMoment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const existingResult = db.exec(`SELECT * FROM moments WHERE id = ${id}`);
+    const existingResult = await db.exec(`SELECT * FROM moments WHERE id = ${id}`);
     
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '说说不存在' });
     }
     
-    db.run(`DELETE FROM moments WHERE id = ${id}`);
-    await saveDb();
+    await db.run(`DELETE FROM moments WHERE id = ${id}`);
     res.json({ message: '删除成功' });
   } catch (error) {
     res.status(500).json({ error: '删除说说失败' });
@@ -173,16 +169,15 @@ export const likeMoment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const db = await getDb();
-    const existingResult = db.exec(`SELECT * FROM moments WHERE id = ${id}`);
+    const existingResult = await db.exec(`SELECT * FROM moments WHERE id = ${id}`);
     
     if (!existingResult[0]?.values?.length) {
       return res.status(404).json({ error: '说说不存在' });
     }
     
-    db.run(`UPDATE moments SET likes = likes + 1 WHERE id = ${id}`);
-    await saveDb();
+    await db.run(`UPDATE moments SET likes = likes + 1 WHERE id = ${id}`);
     
-    const updatedResult = db.exec(`SELECT * FROM moments WHERE id = ${id}`);
+    const updatedResult = await db.exec(`SELECT * FROM moments WHERE id = ${id}`);
     const row = updatedResult[0]?.values?.[0];
     
     if (!row) {

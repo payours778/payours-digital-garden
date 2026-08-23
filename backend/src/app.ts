@@ -12,6 +12,7 @@ import fishRouter from './routes/fish';
 import gamesRouter from './routes/games';
 import { usersRouter } from './auth';
 import getDb from './db';
+import { initSchema } from './db/schema';
 import { roomPool } from './services/roomPool';
 
 dotenv.config();
@@ -43,6 +44,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 async function startServer() {
   try {
     await getDb();
+    await initSchema();
     console.log('Database initialized successfully');
 
     // 启动时确保持久公开大厅房存在，并立即跑一次临时房清理
