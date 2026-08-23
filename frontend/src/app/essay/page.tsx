@@ -49,7 +49,7 @@ const essayCss = `
   --mag-ink-faint:#6e6e78;
   --mag-line:rgba(22,22,26,.18);
   --mag-line-soft:rgba(22,22,26,.08);
-  --mag-page-bg:rgba(255,255,255,.65);
+  --mag-page-bg:rgba(255,255,255,.5);
   --mag-surface:rgba(255,255,255,.85);
   --mag-surface-hover:#fff;
   --mag-art:#2563eb;
@@ -63,7 +63,7 @@ const essayCss = `
   --mag-ink-faint:#9a9aa2;
   --mag-line:rgba(242,242,242,.18);
   --mag-line-soft:rgba(242,242,242,.08);
-  --mag-page-bg:rgba(18,18,24,.62);
+  --mag-page-bg:rgba(18,18,24,.45);
   --mag-surface:rgba(18,18,24,.82);
   --mag-surface-hover:rgba(28,28,36,.98);
 }
@@ -81,8 +81,9 @@ const essayCss = `
 .mk-cta{margin-top:28px;display:inline-flex;align-items:center;gap:10px;font-family:var(--sans);font-size:14px;font-weight:700;color:var(--mag-accent);letter-spacing:.02em}
 .mk-page{background:var(--mag-page-bg);border:1px solid var(--mag-line);border-radius:10px;padding:48px 56px;box-shadow:0 8px 24px -12px rgba(0,0,0,.18)}
 .mk-featured{display:grid;grid-template-columns:1fr 1fr;gap:36px;align-items:center;padding:8px 0 12px}
-.mk-art{position:relative;min-height:340px;border-radius:8px;overflow:hidden;background:#0b2433;box-shadow:0 30px 60px -30px rgba(0,0,0,.5)}
-.mk-art img.cov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.mk-art{position:relative;min-height:340px;border-radius:8px;overflow:hidden;background:#0b2433}
+.mk-art .mk-art-bg{position:absolute;inset:0;background:#0b2433;z-index:0}
+.mk-art img.cov{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;filter:blur(2px);transform:scale(1.03)}
 .mk-art .fade{position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.7) 0%,rgba(0,0,0,.35) 35%,transparent 70%);z-index:1}
 .mk-art .num{position:absolute;top:20px;left:22px;font-family:var(--sans);font-weight:800;font-size:13px;letter-spacing:.2em;color:rgba(255,255,255,.85);z-index:3}
 .mk-art .big{position:absolute;inset:0;display:grid;place-items:center;font-family:"Noto Serif SC","Source Han Serif SC",serif;font-size:clamp(140px,20vw,250px);font-weight:800;color:rgba(255,255,255,.16)}
@@ -203,6 +204,7 @@ export default function EssayPage() {
             </Link>
           </div>
           <div className="mk-art">
+            <div className="mk-art-bg" />
             <img
               key={essays[featuredIdx].id}
               src={essays[featuredIdx].image}

@@ -58,6 +58,7 @@ export function EssayCarousel() {
               src={essay.image}
               alt=""
               className="w-full h-full object-cover"
+              style={{ filter: "blur(2px)", transform: "scale(1.03)" }}
             />
           </div>
         ))}
