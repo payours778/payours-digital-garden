@@ -1,0 +1,50 @@
+# =====================================================================
+#  基础设施一键启动：MySQL + Redis
+#  用法：在 infra/ 目录下执行
+#     docker compose --env-file ../backend/.env up -d
+#  说明：密码等敏感变量一律从 backend/.env 读取（不硬编码、不入库）
+# =====================================================================
+
+services:
+  # ---------- MySQL ----------
+  mysql:
+    image: mysql:8.0.39
+    container_name: blog-mysql
+    restart: unless-stopped
+    ports:
+      - "3306:3306"
+    env_file:
+      - ../backend/.env
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?...请在 backend/.env 配置 MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-blog_db}
+      MYSQL_USER: ${MYSQL_USER:-blog}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?...请在 backend/.env 配置 MYSQL_PASSWORD}
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+
+  # ---------- Redis ----------
+  redis:
+    image: redis:7.4
+    container_name: blog-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command:
+      - sh
+      - -c
+      - exec redis-server --appendonly yes --appendfsync everysec --requirepass "$${REDIS_PASSWORD:-blog_redis}" --maxmemory 256mb --maxmemory-policy allkeys-lru
+    environment:
+      TZ: "Asia/Shanghai"
+    volumes:
+      - ./data/redis:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$${REDIS_PASSWORD:-blog_redis}\" ping | grep PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+networks:
+  default:
+    name: blog-infra

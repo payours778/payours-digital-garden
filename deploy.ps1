@@ -161,7 +161,7 @@ cd frontend && npm install --omit=dev && cd ..
 echo "===== install backend deps ====="
 cd backend && npm install --omit=dev && cd ..
 
-echo "===== ensure MySQL schema (if .env present) ====="
+echo "===== ensure MySQL schema ====="
 if [ -f /var/www/blog/backend/.env ]; then
   echo ".env found, running db:init to ensure MySQL tables"
   cd /var/www/blog/backend && npm run db:init && cd /var/www/blog

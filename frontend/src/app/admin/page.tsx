@@ -7,6 +7,7 @@ const menuItems = [
   { href: "/admin/projects", label: "项目管理", icon: "📁", description: "管理项目展示卡片" },
   { href: "/admin/photos", label: "照片管理", icon: "🖼️", description: "相册与照片上传" },
   { href: "/admin/music", label: "音乐管理", icon: "🎵", description: "添加和管理音乐" },
+  { href: "/admin/users", label: "用户管理", icon: "👥", description: "用户的增删改查与角色" },
 ];
 
 export default function AdminHome() {

@@ -10,6 +10,7 @@
     "db:init": "tsx src/db/init.ts"
   },
   "dependencies": {
+    "@alicloud/dysmsapi20170525": "^4.6.0",
     "@types/bcrypt": "^6.0.0",
     "ali-oss": "^6.23.0",
     "bcrypt": "^6.0.0",
@@ -17,6 +18,7 @@
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.21.0",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.2.0",
     "mysql2": "^3.23.4"

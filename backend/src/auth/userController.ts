@@ -1,8 +1,13 @@
 import { Request, Response } from 'express';
+import crypto from 'crypto';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import getDb from '../db';
 import type { UserRow, SafeUser, JwtPayload } from './types';
+import { sendSmsCode } from '../utils/sms';
+import {
+  generateCode, saveCode, verifyCode, checkCooldown,
+} from '../utils/smsStore';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-me';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '7d';
@@ -246,12 +251,88 @@ export const closeAccount = async (req: Request, res: Response) => {
   }
 };
 
-// 短信登录（预留）
+// 短信登录（手机号 + 验证码）
 export const loginBySms = async (req: Request, res: Response) => {
-  res.status(501).json({ error: '短信登录尚未实现' });
+  try {
+    const { phone, code } = req.body;
+
+    if (!phone || !code) {
+      return res.status(400).json({ error: '手机号和验证码不能为空' });
+    }
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({ error: '手机号格式不正确' });
+    }
+
+    // 校验验证码（一次性）
+    const ok = await verifyCode(phone, String(code));
+    if (!ok) {
+      return res.status(401).json({ error: '验证码错误或已过期' });
+    }
+
+    const db = await getDb();
+
+    // 查找用户，不存在则自动注册（用手机号作为用户名）
+    const existing = await db.exec('SELECT * FROM users WHERE phone = ?', [phone]);
+    let row = existing[0]?.values?.[0];
+
+    if (!row) {
+      // 自动注册：用户名取手机号，密码不可用（纯手机号登录用户）
+      const randomPassword = crypto.randomBytes(12).toString('hex');
+      const passwordHash = await bcrypt.hash(randomPassword, 10);
+      const now = nowBeijing();
+      await db.run(
+        'INSERT INTO users (username, password_hash, phone, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [phone, passwordHash, phone, 'user', now, now]
+      );
+      const maxIdResult = await db.exec('SELECT MAX(id) FROM users');
+      const lastId = maxIdResult[0]?.values?.[0]?.[0];
+      const query = await db.exec('SELECT * FROM users WHERE id = ?', [lastId]);
+      row = query[0]?.values?.[0];
+      if (!row) {
+        return res.status(500).json({ error: '注册失败' });
+      }
+    }
+
+    const user = parseUser(row);
+    const token = generateToken(user);
+    res.json({ user: toSafeUser(user), token });
+  } catch (error) {
+    console.error('短信登录失败:', error);
+    res.status(500).json({ error: '短信登录失败' });
+  }
 };
 
-// 发送短信验证码（预留）
+// 发送短信验证码
 export const sendSms = async (req: Request, res: Response) => {
-  res.status(501).json({ error: '短信验证码功能尚未实现' });
+  try {
+    const { phone } = req.body;
+
+    if (!phone) {
+      return res.status(400).json({ error: '手机号不能为空' });
+    }
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({ error: '手机号格式不正确' });
+    }
+
+    // 60s 频率限制
+    const wait = await checkCooldown(phone);
+    if (wait > 0) {
+      return res.status(429).json({ error: `发送过于频繁，请 ${wait} 秒后重试` });
+    }
+
+    const code = generateCode();
+    await saveCode(phone, code);
+
+    const result = await sendSmsCode(phone, code);
+    if (!result.success) {
+      console.error('[SMS] 发送失败:', result.code, result.message);
+      // 即便失败也返回（验证码已存，若是测试环境可继续）；但正常应提示
+      return res.status(500).json({ error: `短信发送失败: ${result.message}` });
+    }
+
+    res.json({ message: '验证码已发送' });
+  } catch (error) {
+    console.error('发送验证码失败:', error);
+    res.status(500).json({ error: '发送验证码失败' });
+  }
 };

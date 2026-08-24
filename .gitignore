@@ -23,9 +23,10 @@ database/*.sqlite
 .env.local
 .env.*.local
 
-# 本地 docker compose（含数据库密码，禁止上传）
-mysql/
-mysql/data/
+# 基础设施 docker compose（密码走 backend/.env，.env 不入库；compose 本身安全可入库）
+# 仅忽略容器挂载的宿主机数据目录，避免大量数据/密钥提交
+infra/data/
+infra/*/.env
 
 # 日志
 *.log
