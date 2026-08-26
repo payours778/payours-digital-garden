@@ -3,7 +3,7 @@
 #  用法: .\deploy.ps1
 # ============================================================
 
-$SERVER = "root@120.77.201.34"
+$SERVER = "root@database.payours.me"
 $REMOTE = "/var/www/blog/"
 $ROOT   = "e:\data\blog-test"
 

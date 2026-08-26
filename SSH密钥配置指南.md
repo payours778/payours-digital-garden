@@ -25,7 +25,7 @@ C:\Users\Payours\.ssh\
 ## 2. 公钥装到服务器
 
 ```powershell
-type C:\Users\Payours\.ssh\tianxuan3.pub | ssh root@120.77.201.34 "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
+type C:\Users\Payours\.ssh\tianxuan3.pub | ssh root@database.payours.me "mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys"
 ```
 
 > 这一步要输入一次服务器密码，装完就不用了。
@@ -35,7 +35,7 @@ type C:\Users\Payours\.ssh\tianxuan3.pub | ssh root@120.77.201.34 "mkdir -p ~/.s
 ## 3. 测试免密
 
 ```powershell
-ssh -i C:\Users\Payours\.ssh\tianxuan3 root@120.77.201.34 "echo OK"
+ssh -i C:\Users\Payours\.ssh\tianxuan3 root@database.payours.me "echo OK"
 ```
 
 直接输出 `OK` 且不问密码 → 成功。
@@ -47,8 +47,8 @@ ssh -i C:\Users\Payours\.ssh\tianxuan3 root@120.77.201.34 "echo OK"
 创建文件 `C:\Users\Payours\.ssh\config`，内容：
 
 ```
-Host blog 120.77.201.34
-    HostName 120.77.201.34
+Host blog database.payours.me
+    HostName database.payours.me
     User root
     IdentityFile ~/.ssh/tianxuan3
 ```
@@ -57,7 +57,7 @@ Host blog 120.77.201.34
 
 ```powershell
 ssh blog
-ssh root@120.77.201.34
+ssh root@database.payours.me
 ```
 
 ***
@@ -71,7 +71,7 @@ ssh blog "echo SSH别名 OK"
 
 **验证 IP 直连：**
 ```powershell
-ssh root@120.77.201.34 "echo IP直连 OK"
+ssh root@database.payours.me "echo IP直连 OK"
 ```
 
 **验证 scp 上传：**

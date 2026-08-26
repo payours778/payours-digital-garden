@@ -42,6 +42,8 @@ interface SavedRoom {
   ownerId: number | null;
   nickname: string;
   lastSeen: string;
+  is_public: number;
+  lifecycle: string;
 }
 
 // 会话按账号隔离：每个账号各自独立的房间/消息列表，避免换号串台
@@ -122,6 +124,8 @@ export default function FishPage() {
             ownerId: r.owner_id ?? null,
             nickname: nickname,
             lastSeen: new Date().toISOString(),
+            is_public: r.is_public ?? 0,
+            lifecycle: r.lifecycle ?? 'permanent',
           }));
           setSavedRooms(rooms);
           data.rooms.forEach((r: any) => {
@@ -581,13 +585,13 @@ export default function FishPage() {
           {/* Saved rooms */}
           </div>
 
-          <div className="lg:col-span-1 space-y-6">
-            {savedRooms.length > 0 && (
-              <div className="rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4">
-                <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5" />
-                  我的房间
-                </h3>
+          <div className="lg:col-span-1 space-y-6 flex flex-col">
+            <div className="rounded-2xl bg-white/40 dark:bg-slate-800/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4 flex-1 flex flex-col">
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5" />
+                我的房间
+              </h3>
+              {savedRooms.length > 0 ? (
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {savedRooms.map((sr) => (
                     <div key={sr.code} className="flex items-center justify-between p-2.5 rounded-xl bg-white/50 dark:bg-slate-700/50 hover:bg-white/70 dark:hover:bg-slate-600/50 transition-colors group">
@@ -597,7 +601,22 @@ export default function FishPage() {
                         </div>
                         <div className="min-w-0">
                           <div className="text-sm font-medium text-slate-800 dark:text-white">{sr.code}</div>
-                          <div className="text-xs text-slate-400">
+                          <div className="flex items-center gap-1.5 text-xs text-slate-400">
+                            <span
+                              className={
+                                "px-1.5 py-0.5 rounded text-[10px] font-medium " +
+                                (sr.is_public === 1
+                                  ? "bg-emerald-100 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400"
+                                  : "bg-slate-100 dark:bg-slate-700 text-slate-500 dark:text-slate-400")
+                              }
+                            >
+                              {sr.is_public === 1 ? "公开" : "私密"}
+                            </span>
+                            {sr.lifecycle === "temp" && (
+                              <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-100 dark:bg-amber-900/40 text-amber-600 dark:text-amber-400">
+                                临时
+                              </span>
+                            )}
                             {roomStatus[sr.code] ? roomStatus[sr.code].count + "/" + roomStatus[sr.code].max + " 人在线" : "加载中..."}
                           </div>
                         </div>
@@ -625,8 +644,16 @@ export default function FishPage() {
                     </div>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-700/50 flex items-center justify-center mb-2">
+                    <Users className="w-5 h-5 text-slate-300 dark:text-slate-600" />
+                  </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500">还没有加入任何房间</p>
+                  <p className="text-[11px] text-slate-300 dark:text-slate-600 mt-1">在左侧创建或加入房间后，会显示在这里</p>
+                </div>
+              )}
+            </div>
           </div>
           </div>
         </div>

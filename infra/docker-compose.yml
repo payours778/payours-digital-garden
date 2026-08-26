@@ -1,9 +1,35 @@
 # =====================================================================
 #  基础设施一键启动：MySQL + Redis
-#  用法：在 infra/ 目录下执行
+#
+#  .env 唯一位置：backend/.env（所有 DB/Redis/短信密钥都在这）
+#  服务器上由 push-env.ps1 推到：/var/www/blog/backend/.env
+#
+#  标准目录布局（要保证 infra 和 backend 同层，否则相对路径会错）：
+#     /var/www/blog/
+#       ├── backend/.env
+#       ├── frontend/
+#       └── infra/docker-compose.yml   <- 本文件
+#
+#  用法（必须 cd 进 infra/ 再执行，见下方"为什么"）：
 #     docker compose --env-file ../backend/.env up -d
-#  说明：密码等敏感变量一律从 backend/.env 读取（不硬编码、不入库）
+#     docker compose --env-file ../backend/.env down
+#     docker compose --env-file ../backend/.env logs -f
+#
+#  为什么带 --env-file、为什么先 cd infra/：
+#     - service 级 env_file: ../backend/.env（下面 yml 里）是相对【compose文件】
+#       目录解析的，稳定；而 ${VAR:?...} 变量替换只能由 --env-file 提供，
+#       Compose 语法无法把它写进 yml 内，所以每次启动都必须带。
+#     - 且 --env-file 是相对【当前工作目录】解析的，因此必须先 cd 进 infra/，
+#       才能命中 ../backend/.env（否则会指错地方）。
+#     - 也可在服务器上用绝对路径，彻底摆脱 cwd：
+#         docker compose --env-file /var/www/blog/backend/.env up -d
+#
+#  其他：
+#     - 敏感变量一律读 backend/.env，不硬编码、不入库
+#     - 首次导入备份：把 blog_backup_*.sql 放进 ./init/，首次启动自动执行
 # =====================================================================
+
+name: blog-infra
 
 services:
   # ---------- MySQL ----------
@@ -16,21 +42,31 @@ services:
     env_file:
       - ../backend/.env
     environment:
+      TZ: "Asia/Shanghai"
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?...请在 backend/.env 配置 MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_NAME:-blog_db}
       MYSQL_USER: ${MYSQL_USER:-blog}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:?...请在 backend/.env 配置 MYSQL_PASSWORD}
-      TZ: "Asia/Shanghai"
     volumes:
       - ./data/mysql:/var/lib/mysql
+      # 首次启动会执行 ./init/*.sql（建库建表或导入备份），重复挂载只执行一次
+      - ./init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h 127.0.0.1 -uroot -p\"$${MYSQL_ROOT_PASSWORD}\" --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
 
-  # ---------- Redis ----------
+  # ---------- Redis（验证码存储，需密码） ----------
   redis:
     image: redis:7.4
     container_name: blog-redis
     restart: unless-stopped
     ports:
       - "6379:6379"
+    env_file:
+      - ../backend/.env
     command:
       - sh
       - -c

@@ -3,7 +3,7 @@
 #  Usage: .\push-env.ps1
 # ============================================================
 
-$SERVER      = "root@120.77.201.34"
+$SERVER      = "root@database.payours.me"
 $ROOT        = "e:\data\blog-test"
 $LOCAL_ENV   = Join-Path $ROOT "backend\.env"
 $REMOTE_ROOT = "/var/www/blog"
