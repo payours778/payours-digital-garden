@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
+import { authFetch } from "@/lib/api";
 
 const EMOJI_LIST = [
   "😀", "😂", "🤣", "😊", "😍", "🥰", "😘", "😎", "🤩", "🥳",
@@ -82,7 +83,7 @@ export default function AdminMoments() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch("/api/moments", {
+      const res = await authFetch("/api/moments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -95,9 +96,13 @@ export default function AdminMoments() {
         setShowEmojiPicker(false);
         setFormData({ content: "", images: [""] });
         fetchMoments();
+      } else {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `发布失败（HTTP ${res.status}）`);
       }
     } catch (error) {
       console.error("创建说说失败:", error);
+      alert(error instanceof Error ? error.message : "创建说说失败");
     }
   };
 
@@ -105,7 +110,7 @@ export default function AdminMoments() {
     e.preventDefault();
     if (!currentMoment) return;
     try {
-      const res = await fetch(`/api/moments/${currentMoment.id}`, {
+      const res = await authFetch(`/api/moments/${currentMoment.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -119,23 +124,31 @@ export default function AdminMoments() {
         setCurrentMoment(null);
         setFormData({ content: "", images: [""] });
         fetchMoments();
+      } else {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `保存失败（HTTP ${res.status}）`);
       }
     } catch (error) {
       console.error("更新说说失败:", error);
+      alert(error instanceof Error ? error.message : "更新说说失败");
     }
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm("确定要删除这条说说吗？")) return;
     try {
-      const res = await fetch(`/api/moments/${id}`, {
+      const res = await authFetch(`/api/moments/${id}`, {
         method: "DELETE",
       });
       if (res.ok) {
         fetchMoments();
+      } else {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error || `删除失败（HTTP ${res.status}）`);
       }
     } catch (error) {
       console.error("删除说说失败:", error);
+      alert(error instanceof Error ? error.message : "删除说说失败");
     }
   };
 

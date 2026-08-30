@@ -4,9 +4,9 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import getDb from '../db';
 import type { UserRow, SafeUser, JwtPayload } from './types';
-import { sendSmsCode } from '../utils/sms';
+import { sendSmsCode, verifySmsCode } from '../utils/sms';
 import {
-  generateCode, saveCode, verifyCode, checkCooldown,
+  markCooldown, checkCooldown,
 } from '../utils/smsStore';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-change-me';
@@ -44,16 +44,22 @@ const nowBeijing = () =>
 // 注册
 export const register = async (req: Request, res: Response) => {
   try {
-    const { username, password, phone } = req.body;
+    const { username, password, phone, code } = req.body;
 
-    if (!username || !password) {
-      return res.status(400).json({ error: '用户名和密码不能为空' });
+    if (!username || !password || !phone || !code) {
+      return res.status(400).json({ error: '用户名、密码、手机号和验证码不能为空' });
     }
     if (username.length < 2 || username.length > 20) {
       return res.status(400).json({ error: '用户名长度需 2-20 个字符' });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: '密码长度不能少于 6 位' });
+    }
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      return res.status(400).json({ error: '手机号格式不正确' });
+    }
+    if (!/^\d{6}$/.test(String(code))) {
+      return res.status(400).json({ error: '请输入 6 位短信验证码' });
     }
 
     const db = await getDb();
@@ -63,11 +69,14 @@ export const register = async (req: Request, res: Response) => {
       return res.status(409).json({ error: '用户名已存在' });
     }
 
-    if (phone) {
-      const phoneExisting = await db.exec('SELECT id FROM users WHERE phone = ?', [phone]);
-      if (phoneExisting[0]?.values?.length) {
-        return res.status(409).json({ error: '手机号已被注册' });
-      }
+    const phoneExisting = await db.exec('SELECT id FROM users WHERE phone = ?', [phone]);
+    if (phoneExisting[0]?.values?.length) {
+      return res.status(409).json({ error: '手机号已被注册' });
+    }
+
+    const verification = await verifySmsCode(phone, String(code));
+    if (!verification.success) {
+      return res.status(401).json({ error: '验证码错误或已过期' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -75,7 +84,7 @@ export const register = async (req: Request, res: Response) => {
 
     await db.run(
       'INSERT INTO users (username, password_hash, phone, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)',
-      [username, passwordHash, phone || null, 'user', now, now]
+      [username, passwordHash, phone, 'user', now, now]
     );
 
     const maxIdResult = await db.exec('SELECT MAX(id) FROM users');
@@ -264,8 +273,8 @@ export const loginBySms = async (req: Request, res: Response) => {
     }
 
     // 校验验证码（一次性）
-    const ok = await verifyCode(phone, String(code));
-    if (!ok) {
+    const verification = await verifySmsCode(phone, String(code));
+    if (!verification.success) {
       return res.status(401).json({ error: '验证码错误或已过期' });
     }
 
@@ -305,7 +314,7 @@ export const loginBySms = async (req: Request, res: Response) => {
 // 发送短信验证码
 export const sendSms = async (req: Request, res: Response) => {
   try {
-    const { phone } = req.body;
+    const { phone, purpose = 'register' } = req.body;
 
     if (!phone) {
       return res.status(400).json({ error: '手机号不能为空' });
@@ -313,22 +322,32 @@ export const sendSms = async (req: Request, res: Response) => {
     if (!/^1[3-9]\d{9}$/.test(phone)) {
       return res.status(400).json({ error: '手机号格式不正确' });
     }
+    if (purpose !== 'register' && purpose !== 'login') {
+      return res.status(400).json({ error: '短信验证码用途不正确' });
+    }
+
+    if (purpose === 'register') {
+      const db = await getDb();
+      const existing = await db.exec('SELECT id FROM users WHERE phone = ?', [phone]);
+      if (existing[0]?.values?.length) {
+        return res.status(409).json({ error: '手机号已被注册' });
+      }
+    }
 
     // 60s 频率限制
-    const wait = await checkCooldown(phone);
+    const wait = await checkCooldown(phone, purpose);
     if (wait > 0) {
       return res.status(429).json({ error: `发送过于频繁，请 ${wait} 秒后重试` });
     }
 
-    const code = generateCode();
-    await saveCode(phone, code);
-
-    const result = await sendSmsCode(phone, code);
+    const result = await sendSmsCode(phone);
     if (!result.success) {
       console.error('[SMS] 发送失败:', result.code, result.message);
       // 即便失败也返回（验证码已存，若是测试环境可继续）；但正常应提示
       return res.status(500).json({ error: `短信发送失败: ${result.message}` });
     }
+
+    await markCooldown(phone, purpose);
 
     res.json({ message: '验证码已发送' });
   } catch (error) {

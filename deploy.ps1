@@ -3,9 +3,17 @@
 #  用法: .\deploy.ps1
 # ============================================================
 
-$SERVER = "root@database.payours.me"
-$REMOTE = "/var/www/blog/"
-$ROOT   = "e:\data\blog-test"
+param(
+    [string]$Server = "root@database.payours.me",
+    [string]$Remote = "/var/www/blog"
+)
+
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+$ErrorActionPreference = "Stop"
+
+$SERVER = $Server
+$REMOTE = $Remote.TrimEnd('/')
+$ROOT   = $PSScriptRoot
 
 # ---- 颜色定义 ----
 $C_TITLE  = "Magenta"
@@ -75,24 +83,36 @@ Write-Host "  Remote: $REMOTE" -ForegroundColor $C_DIM
 Write-Host "  Start:  $($startTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor $C_DIM
 Write-Host ""
 
+# ---- 本地环境预检 ----
+foreach ($command in @("npm", "tar", "ssh", "scp")) {
+    if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
+        Stop-OnError "required command not found: $command"
+    }
+}
+foreach ($lockFile in @("frontend\package-lock.json", "backend\package-lock.json")) {
+    if (-not (Test-Path (Join-Path $ROOT $lockFile))) {
+        Stop-OnError "$lockFile not found"
+    }
+}
+
 # ============================================================
 #  Step 1/4 - Ben Di Gou Jian
 # ============================================================
 Show-Progress 1 $totalSteps "Build (frontend + backend)"
 
 Write-Host "  [1/4] Build frontend..." -ForegroundColor $C_STEP
-cd $ROOT\frontend
-npm install 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
-if ($LASTEXITCODE -ne 0) { Stop-OnError "frontend npm install failed" }
+Set-Location (Join-Path $ROOT "frontend")
+npm ci 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
+if ($LASTEXITCODE -ne 0) { Stop-OnError "frontend npm ci failed" }
 npm run build 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
 if ($LASTEXITCODE -ne 0) { Stop-OnError "frontend build failed" }
 Write-Host "  [OK] frontend build done" -ForegroundColor $C_OK
 
 Write-Host ""
 Write-Host "  [1/4] Build backend..." -ForegroundColor $C_STEP
-cd $ROOT\backend
-npm install 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
-if ($LASTEXITCODE -ne 0) { Stop-OnError "backend npm install failed" }
+Set-Location (Join-Path $ROOT "backend")
+npm ci 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
+if ($LASTEXITCODE -ne 0) { Stop-OnError "backend npm ci failed" }
 npm run build 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
 if ($LASTEXITCODE -ne 0) { Stop-OnError "backend build failed" }
 Write-Host "  [OK] backend build done" -ForegroundColor $C_OK
@@ -102,7 +122,7 @@ Write-Host "  [OK] backend build done" -ForegroundColor $C_OK
 # ============================================================
 Show-Progress 2 $totalSteps "Pack (tar.gz)"
 
-cd $ROOT
+Set-Location $ROOT
 Write-Host "  [2/4] Pack frontend..." -ForegroundColor $C_STEP
 tar -czf frontend-deploy.tar.gz -C frontend .next package.json package-lock.json next.config.ts public
 if ($LASTEXITCODE -ne 0) { Stop-OnError "frontend pack failed" }
@@ -121,14 +141,15 @@ Write-Host "  [OK] backend-deploy.tar.gz ($($beSize) MB)" -ForegroundColor $C_OK
 # ============================================================
 Show-Progress 3 $totalSteps "SCP upload"
 
-cd $ROOT
+Set-Location $ROOT
 Write-Host "  [3/4] Create remote dirs..." -ForegroundColor $C_STEP
-ssh $SERVER "mkdir -p /var/www/blog/frontend /var/www/blog/backend" 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
+ssh $SERVER "mkdir -p '$REMOTE/frontend' '$REMOTE/backend'" 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
+if ($LASTEXITCODE -ne 0) { Stop-OnError "failed to create remote directories" }
 Write-Host "  [OK] remote dirs ready" -ForegroundColor $C_OK
 
 Write-Host ""
 Write-Host "  [3/4] Upload packages..." -ForegroundColor $C_STEP
-scp frontend-deploy.tar.gz backend-deploy.tar.gz ${SERVER}:${REMOTE} 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
+scp frontend-deploy.tar.gz backend-deploy.tar.gz "${SERVER}:${REMOTE}/" 2>&1 | ForEach-Object { Write-Host "    $_" -ForegroundColor $C_DIM }
 if ($LASTEXITCODE -ne 0) { Stop-OnError "upload failed, check SSH config" }
 Write-Host "  [OK] 2 files uploaded to $REMOTE" -ForegroundColor $C_OK
 
@@ -144,8 +165,11 @@ Write-Host ""
 $remoteScript = @'
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
-set -e
-cd /var/www/blog
+set -Eeuo pipefail
+cd '__REMOTE__'
+
+command -v node >/dev/null 2>&1 || { echo "ERROR: node not found"; exit 1; }
+command -v npm >/dev/null 2>&1 || { echo "ERROR: npm not found"; exit 1; }
 
 echo "===== extract frontend ====="
 rm -rf frontend/.next
@@ -156,35 +180,48 @@ rm -rf backend/dist
 tar -xzf backend-deploy.tar.gz -C backend
 
 echo "===== install frontend deps ====="
-cd frontend && npm install --omit=dev && cd ..
+cd frontend && npm ci --omit=dev && cd ..
 
 echo "===== install backend deps ====="
-cd backend && npm install --omit=dev && cd ..
+cd backend && npm ci --omit=dev && cd ..
 
-echo "===== ensure MySQL schema ====="
-if [ -f /var/www/blog/backend/.env ]; then
-  echo ".env found, running db:init to ensure MySQL tables"
-  cd /var/www/blog/backend && npm run db:init && cd /var/www/blog
-else
-  echo "WARN: /var/www/blog/backend/.env missing, backend may fail to connect MySQL"
+if [ ! -f backend/.env ]; then
+  echo "ERROR: __REMOTE__/backend/.env missing"
+  exit 1
 fi
 
 echo "===== restart services ====="
-if pm2 list | grep -q blog-frontend; then
-  pm2 restart blog-frontend blog-backend
-  echo "pm2 restarted"
-else
-  echo "pm2 not found, first deploy..."
+if ! command -v pm2 >/dev/null 2>&1; then
+  echo "PM2 not found, installing..."
   npm i -g pm2
-  pm2 start "npm --prefix /var/www/blog/frontend start" --name blog-frontend
-  pm2 start "npm --prefix /var/www/blog/backend start" --name blog-backend
-  pm2 save
-  pm2 startup
-  echo "pm2 first setup done"
 fi
+
+if pm2 describe blog-frontend >/dev/null 2>&1; then
+  pm2 restart blog-frontend
+else
+  pm2 start npm --name blog-frontend --cwd '__REMOTE__/frontend' -- start
+fi
+
+if pm2 describe blog-backend >/dev/null 2>&1; then
+  pm2 restart blog-backend
+else
+  pm2 start npm --name blog-backend --cwd '__REMOTE__/backend' -- start
+fi
+pm2 save
+
+echo "===== health checks ====="
+curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-connrefused \
+  http://127.0.0.1:3001/api/health >/dev/null
+curl --fail --silent --show-error --retry 10 --retry-delay 2 --retry-connrefused \
+  http://127.0.0.1:3000/ >/dev/null
+
+echo "===== cleanup uploaded packages ====="
+rm -f frontend-deploy.tar.gz backend-deploy.tar.gz
 
 echo "===== deploy done ====="
 '@
+
+$remoteScript = $remoteScript.Replace('__REMOTE__', $REMOTE)
 
 ssh $SERVER $remoteScript 2>&1 | ForEach-Object { Write-Host "    $_" }
 if ($LASTEXITCODE -ne 0) { Stop-OnError "server deploy failed" }

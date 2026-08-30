@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiPost } from '@/lib/api';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -12,8 +13,38 @@ export default function RegisterPage() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [sendingCode, setSendingCode] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+    const timer = window.setInterval(() => {
+      setCountdown((value) => Math.max(0, value - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [countdown]);
+
+  const handleSendCode = async () => {
+    setError('');
+    if (!/^1[3-9]\d{9}$/.test(phone)) {
+      setError('请输入正确的手机号');
+      return;
+    }
+
+    setSendingCode(true);
+    try {
+      const data = await apiPost('/api/users/sms/send', { phone, purpose: 'register' });
+      if (data.error) throw new Error(data.error);
+      setCountdown(60);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : '验证码发送失败');
+    } finally {
+      setSendingCode(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,10 +57,10 @@ export default function RegisterPage() {
 
     setLoading(true);
     try {
-      await register(username, password, phone || undefined);
+      await register(username, password, phone, code);
       router.push('/');
-    } catch (err: any) {
-      setError(err.message || '注册失败');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : '注册失败');
     } finally {
       setLoading(false);
     }
@@ -100,15 +131,46 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.3)' }}>
-                手机号 <span className="text-slate-400 text-xs">(选填，后续可用于短信登录)</span>
+                手机号
               </label>
               <input
                 type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
+                required
+                inputMode="numeric"
+                maxLength={11}
                 className="w-full px-3.5 py-2.5 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-white/30 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition text-sm"
-                placeholder="选填"
+                placeholder="请输入手机号"
               />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1" style={{ textShadow: '0 1px 2px rgba(255,255,255,0.3)' }}>
+                短信验证码
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  required
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  pattern="\d{6}"
+                  maxLength={6}
+                  className="min-w-0 flex-1 px-3.5 py-2.5 rounded-lg bg-white/50 dark:bg-slate-800/50 border border-white/30 dark:border-white/10 text-slate-800 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/50 transition text-sm"
+                  placeholder="6 位验证码"
+                />
+                <button
+                  type="button"
+                  onClick={handleSendCode}
+                  disabled={sendingCode || countdown > 0}
+                  className="shrink-0 px-3 py-2.5 rounded-lg border border-indigo-400/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 disabled:opacity-50 text-sm transition hover:bg-indigo-500/20"
+                >
+                  {sendingCode ? '发送中...' : countdown > 0 ? `${countdown}s` : '获取验证码'}
+                </button>
+              </div>
             </div>
 
             <button

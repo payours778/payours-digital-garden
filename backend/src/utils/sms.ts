@@ -1,4 +1,7 @@
-import Dysmsapi, { SendSmsRequest } from '@alicloud/dysmsapi20170525';
+import Dypnsapi, {
+  CheckSmsVerifyCodeRequest,
+  SendSmsVerifyCodeRequest,
+} from '@alicloud/dypnsapi20170525';
 import { $OpenApiUtil } from '@alicloud/openapi-core';
 import dotenv from 'dotenv';
 
@@ -9,59 +12,87 @@ const {
   ACCESS_KEY_SECRET,
   SMS_SIGN_NAME,
   SMS_TEMPLATE_CODE,
-  SMS_REGION,
+  SMS_SCHEME_NAME,
 } = process.env;
 
-let client: Dysmsapi | null = null;
+let client: Dypnsapi | null = null;
 
-function getClient(): Dysmsapi | null {
+function getClient(): Dypnsapi | null {
   if (client) return client;
   if (!ACCESS_KEY_ID || !ACCESS_KEY_SECRET || !SMS_SIGN_NAME || !SMS_TEMPLATE_CODE) {
     console.error('[SMS] 配置缺失：需要 ACCESS_KEY_ID / ACCESS_KEY_SECRET / SMS_SIGN_NAME / SMS_TEMPLATE_CODE');
     return null;
   }
-  client = new Dysmsapi(
-    new $OpenApiUtil.Config({
-      accessKeyId: ACCESS_KEY_ID,
-      accessKeySecret: ACCESS_KEY_SECRET,
-      endpoint: SMS_REGION === 'cn-hangzhou' ? 'dysmsapi.aliyuncs.com' : `dysmsapi.${SMS_REGION}.aliyuncs.com`,
-    })
-  );
+  client = new Dypnsapi(new $OpenApiUtil.Config({
+    accessKeyId: ACCESS_KEY_ID,
+    accessKeySecret: ACCESS_KEY_SECRET,
+    endpoint: 'dypnsapi.aliyuncs.com',
+  }));
   return client;
 }
 
-export interface SendSmsResult {
+export interface SmsOperationResult {
   success: boolean;
-  code: string;   // 阿里云返回码，OK 表示成功
+  code: string;
   message: string;
 }
 
-// 发送短信验证码
-export async function sendSmsCode(phone: string, code: string): Promise<SendSmsResult> {
+// 号码认证服务负责生成、发送和保存验证码。
+export async function sendSmsCode(phone: string): Promise<SmsOperationResult> {
   const c = getClient();
-  if (!c) {
-    return { success: false, code: 'CONFIG_MISSING', message: '短信服务未配置' };
-  }
+  if (!c) return { success: false, code: 'CONFIG_MISSING', message: '短信服务未配置' };
+
   try {
-    const response = await c.sendSms(
-      new SendSmsRequest({
-        phoneNumbers: phone,
-        signName: SMS_SIGN_NAME!,
-        templateCode: SMS_TEMPLATE_CODE!,
-        templateParam: JSON.stringify({ code }),
-      })
-    );
+    const response = await c.sendSmsVerifyCode(new SendSmsVerifyCodeRequest({
+      phoneNumber: phone,
+      countryCode: '86',
+      signName: SMS_SIGN_NAME!,
+      templateCode: SMS_TEMPLATE_CODE!,
+      templateParam: JSON.stringify({ code: '##code##', min: '5' }),
+      schemeName: SMS_SCHEME_NAME || undefined,
+      codeLength: 6,
+      codeType: 1,
+      validTime: 5 * 60,
+      interval: 60,
+      duplicatePolicy: 1,
+      returnVerifyCode: false,
+    }));
     const body = response.body;
-    if (!body) {
-      return { success: false, code: 'NO_BODY', message: '无响应内容' };
-    }
     return {
-      success: body.code === 'OK',
-      code: body.code || '',
-      message: body.message || '',
+      success: body?.success === true && body?.code === 'OK',
+      code: body?.code || '',
+      message: body?.message || '',
     };
-  } catch (err: any) {
-    console.error('[SMS] 发送失败:', err.message || err);
-    return { success: false, code: 'EXCEPTION', message: err.message || '发送异常' };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '发送异常';
+    console.error('[SMS/DYPNS] 发送失败:', message);
+    return { success: false, code: 'EXCEPTION', message };
+  }
+}
+
+// 验证码由号码认证服务校验，PASS 才表示验证成功。
+export async function verifySmsCode(phone: string, code: string): Promise<SmsOperationResult> {
+  const c = getClient();
+  if (!c) return { success: false, code: 'CONFIG_MISSING', message: '短信服务未配置' };
+
+  try {
+    const response = await c.checkSmsVerifyCode(new CheckSmsVerifyCodeRequest({
+      phoneNumber: phone,
+      countryCode: '86',
+      verifyCode: code,
+      schemeName: SMS_SCHEME_NAME || undefined,
+      caseAuthPolicy: 1,
+    }));
+    const body = response.body;
+    const passed = body?.success === true && body?.code === 'OK' && body?.model?.verifyResult === 'PASS';
+    return {
+      success: passed,
+      code: body?.code || '',
+      message: passed ? '验证通过' : (body?.message || '验证码错误或已过期'),
+    };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : '校验异常';
+    console.error('[SMS/DYPNS] 校验失败:', message);
+    return { success: false, code: 'EXCEPTION', message };
   }
 }

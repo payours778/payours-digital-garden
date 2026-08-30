@@ -10,7 +10,7 @@
     "db:init": "tsx src/db/init.ts"
   },
   "dependencies": {
-    "@alicloud/dysmsapi20170525": "^4.6.0",
+    "@alicloud/dypnsapi20170525": "^2.0.0",
     "@types/bcrypt": "^6.0.0",
     "ali-oss": "^6.23.0",
     "bcrypt": "^6.0.0",
